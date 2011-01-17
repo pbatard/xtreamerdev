@@ -22,6 +22,9 @@
 #if !defined(_YMODEM_H)
 #define _YMODEM_H
 
+/* Comment this out if you don't plan to use extra CRC32 - removes ~1K */
+#define WITH_CRC32
+
 #define PACKET_SEQNO_INDEX      (1)
 #define PACKET_SEQNO_COMP_INDEX (2)
 
@@ -31,8 +34,6 @@
 #define PACKET_SIZE             (128)
 #define PACKET_1K_SIZE          (1024)
 #define PACKET_TIMEOUT          (1)
-
-#define INITIAL
 
 #define FILE_NAME_LENGTH (64)
 #define FILE_SIZE_LENGTH (16)
