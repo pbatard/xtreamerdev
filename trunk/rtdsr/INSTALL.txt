@@ -1,0 +1,13 @@
+System requirements:
+  A platform where the MIPS SDE Lite compiler is supported (currently Linux,
+  cygwin or Solaris)
+
+Installation:
+  1. Download and install the MIPS SDE Lite compiler archive for your platform:
+       http://www.mips.com/products/software-tools/mips-sde-lite/
+     For installation, you can follow:
+       http://www.mips.com/media/files/MD00428-2B-SDE6X-SUM-01.17.pdf
+  2. Navigate to your rtdsr directory and run:
+       make
+
+For instructions on how to run the compiled utility, see the README file.
