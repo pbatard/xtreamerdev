@@ -30,18 +30,19 @@
  * To be able to use these functions, you must provide:
  * o int _getchar(int timeout): A serial getchar() call, with a
  *   timeout expressed in seconds. Negative means infinite timeout.
- *   returns a character as an int, or negative on error/timeout.
+ *   should return the read character, as an int, or negative on
+ *   error/timeout.
  * o void _putchar(int c): A serial putchar() call
+ * o printf(), thought all the printfs can be removed if needed.
  */
 
 #include "util.h"
 #include "printf.h"
 #include "ymodem.h"
 
-#define WITH_CRC32
 #ifdef WITH_CRC32
 /* http://csbruce.com/~csbruce/software/crc32.c */
-unsigned long crc32(const unsigned char* buf, unsigned long count)
+static unsigned long crc32(const unsigned char* buf, unsigned long count)
 {
 	unsigned long crc = 0xFFFFFFFF;
 	unsigned long i;
@@ -95,7 +96,7 @@ unsigned long crc32(const unsigned char* buf, unsigned long count)
 #endif
 
 /* http://www.ccsinfo.com/forum/viewtopic.php?t=24977 */
-unsigned short crc16(const unsigned char *buf, unsigned long count)
+static unsigned short crc16(const unsigned char *buf, unsigned long count)
 {
 	unsigned short crc = 0;
 	int i;
