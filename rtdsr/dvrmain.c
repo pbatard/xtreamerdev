@@ -22,6 +22,7 @@
 #include "util.h"
 #include "printf.h"
 #include "ymodem.h"
+#include "command.h"
 /*
 #include "flashdev_n.h"
 #include "flashdev_p.h"
@@ -62,7 +63,7 @@ void display_buffer_hex(UINT32 addr, UINT32 size)
 
 	for (i=0; i<size; i+=16) {
 		printf("\n  %08lx  ", addr+i);
-		for(j=0,k=0; k<16; j++,k++) {
+		for (j=0,k=0; k<16; j++,k++) {
 			if (i+j < size) {
 				printf("%02x", REG8(addr+i+j));
 			} else {
@@ -71,7 +72,7 @@ void display_buffer_hex(UINT32 addr, UINT32 size)
 			printf(" ");
 		}
 		printf(" ");
-		for(j=0,k=0; k<16; j++,k++) {
+		for (j=0,k=0; k<16; j++,k++) {
 			if (i+j < size) {
 				if ((REG8(addr+i+j) < 32) || (REG8(addr+i+j) > 126)) {
 					printf(".");
@@ -91,14 +92,33 @@ void display_buffer_hex(UINT32 addr, UINT32 size)
 //#define SERIAL_ECHO
 int dvrmain(void)
 {
-	int c, ret;
+	int r, c, ret;
+	char commandline[255];
 
 	init_printf(NULL, putc);
+	init_commands();
 
-	printf("\nrtdsr version " VERSION ", Copyright (c) 2011 Pete B.\n");
+	printf("\n\nrtdsr v" VERSION ", Copyright (c) 2011 Pete B. <xtreamerdev@gmail.com>\n\n");
 	printf("rtdsr comes with ABSOLUTELY NO WARRANTY.\n");
-	printf("This is free software, and you are welcome to redistribute it\n");
-	printf("under certain conditions; see the GNU GPL v3 for details.\n");
+	printf("This program is free software, you are welcome to redistribute it under\n");
+	printf("certain conditions. See http://www.gnu.org/licenses/gpl.html for details.\n\n");
+
+	/* the command loop. endless, of course */
+	for (;;) {
+		printf("rtdsr> ");
+
+		/* wait 10 minutes for a command */
+		r = GetCommand(commandline, MAX_COMMANDLINE_LENGTH, 600);
+
+		if (r > 0) {
+			if ((r = parse_command(commandline)) < 0 ) {
+				if (r == PROGRAM_EXIT) {
+					return 0;
+				}
+				printf("error %d executing command\n", r);
+			}
+		}
+	}
 
 #ifdef DUMP_BOOTROM
 	ret = ymodem_send((unsigned char*)0xBFC00000, 0x2000, "BootROM.bin");
