@@ -17,10 +17,10 @@
  *
  */
 
-/* Adjust the following according to your CPU frequency (Hz) */
-#define CPU_FREQUENCY				27000000
+#ifndef _REALTEK_H
+#define _REALTEK_H
 
-/* Most of the following come from linux-mips-rt-galaxy */
+/* Most of the following comes from linux-mips-rt-galaxy */
 #define RTGALAXY_REG_BASE			0xb8010000
 
 #define RTGALAXY_UART0_BASE_OFFSET	0xb200
@@ -60,3 +60,5 @@
 #define RTGALAXY_TIMER_CLK27M		(RTGALAXY_TIMER_BASE + 0x038)
 #define RTGALAXY_TIMER_CLK90K_TM_HI	(RTGALAXY_TIMER_BASE + 0x03c)
 #define RTGALAXY_TIMER_CLK90K_TM_LO	(RTGALAXY_TIMER_BASE + 0x040)
+
+#endif

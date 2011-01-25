@@ -19,6 +19,7 @@
  *
  */
 
+#include "../config.h"
 #include "realtek.h"
 #include "util.h"
 

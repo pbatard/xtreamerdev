@@ -19,6 +19,7 @@
  *
  */
 
+#include "../config.h"
 #include "util.h"
 #include "printf.h"
 #include "ymodem.h"
@@ -37,9 +38,8 @@
 #define FLASH_MAGICNO_NAND			0xce
 #define FLASH_MAGICNO_NOR_SERIAL	0xde
 */
-#define DATA_TMP_ADDR			0xa0500000
-#define DATA_TMP_SIZE			0x00010000
-#define NOR_BULK_SIZE			0x00010000	// access NOR flash by sector (64KB)
+
+
 
 /*
 extern UINT32 pages_per_block;
