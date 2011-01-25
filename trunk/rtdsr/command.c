@@ -61,7 +61,6 @@ void init_commands(void)
 	lastcommand = (commandlist_t*) &__commandlist_end;
 
 	/* make a list */
-	/* FIXME: should sort the list in alphabetical order over here */
 	cmd = next_cmd = commands;
 	next_cmd++;
 
