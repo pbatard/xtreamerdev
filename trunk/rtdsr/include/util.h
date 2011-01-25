@@ -37,6 +37,7 @@ typedef signed int			INT32;
 typedef unsigned long long	UINT64;
 typedef signed long long	INT64;
 typedef UINT8				bool;
+typedef unsigned int		size_t;
 
 /************************************************************************
  *  Public function
@@ -52,5 +53,8 @@ void _putchar(int c);
 int  _getchar(int timeout);
 void _memset(void *dst, UINT8 value, UINT32 size);
 void _memcpy(void *dst, void *src, UINT32 size);
+size_t _strlen(const char* s);
+int _strncmp(const char *s1, const char *s2, size_t n);
+char *_strncpy(char *dest, const char *src, size_t n);
 
 #endif

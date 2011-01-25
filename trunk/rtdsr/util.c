@@ -204,3 +204,32 @@ void _sleep(unsigned long seconds)
 {
 	_msleep(seconds*1000);
 }
+
+int _strncmp(const char *s1, const char *s2, size_t n) {
+	register const char* a=s1;
+	register const char* b=s2;
+	register const char* fini=a+n;
+	while (a<fini) {
+		register int res=*a-*b;
+		if (res) return res;
+		if (!*a) return 0;
+		++a; ++b;
+	}
+	return 0;
+}
+
+size_t _strlen(const char* s)
+{
+	register size_t len = 0;
+
+	if (!s) return 0;
+	while (*s++) len++;
+	return len;
+}
+
+char *_strncpy(char *dest, const char *src, size_t n) {
+	_memcpy((void*)dest, (void*)src, n);
+	if (n)
+		dest[n-1]=0;
+	return dest;
+}

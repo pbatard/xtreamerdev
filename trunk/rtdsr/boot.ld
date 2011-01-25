@@ -5,30 +5,37 @@ MEMORY
 }
 SECTIONS
 {
-		
-	.text 0x80100000 :  
-	{ 
+
+	.text 0x80100000 :
+	{
 		_ftext = .;
-		ram_boot.o(.text) 
+		ram_boot.o(.text)
 		dvrmain.o(.text)
 		util.o(.text)
 		printf.o(.text)
-		ymodem.o(.text)		
+		ymodem.o(.text)
+		command.o(.text)
 /*		flashdev_n.o(.text)
 		flashdev_p.o(.text)
 		flashdev_s.o(.text)
 */		etext = .;
 	}
-	
-	.data	      ALIGN(0x4) : { *(.data) *(.sdata) *(.lit4) *(.lit8) }			   
-	.bss	      ALIGN(0x4) : { 
+
+	/* See command.h */
+	. = ALIGN(4);
+	.commandlist : {
+		__commandlist_start = .;
+		*(.commandlist)
+		__commandlist_end = .;
+	}
+
+	.data	      ALIGN(0x4) : { *(.data) *(.sdata) *(.lit4) *(.lit8) }
+	.bss	      ALIGN(0x4) : {
 				    . = ALIGN(4);
-				    __bss_start = .; 
+				    __bss_start = .;
 				    *(.sbss) *(.bss) *(.scommon)
 				    . = ALIGN(4);
-				    __bss_end = .; 
+				    __bss_end = .;
 				   } /* 64KB */
 	.rodata	      ALIGN(0x4) : { *(.rodata) }
 }
-
-
