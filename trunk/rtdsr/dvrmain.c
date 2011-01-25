@@ -85,15 +85,20 @@ void display_buffer_hex(UINT32 addr, UINT32 size)
 }
 
 
-#define DUMP_BOOTROM
-//#define YMODEM_RCV
+#define VERSION "0.4"
+//#define DUMP_BOOTROM
+#define YMODEM_RCV
 //#define SERIAL_ECHO
 int dvrmain(void)
 {
 	int c, ret;
 
 	init_printf(NULL, putc);
-	printf("\n");
+
+	printf("\nrtdsr version " VERSION ", Copyright (c) 2011 Pete B.\n");
+	printf("rtdsr comes with ABSOLUTELY NO WARRANTY.\n");
+	printf("This is free software, and you are welcome to redistribute it\n");
+	printf("under certain conditions; see the GNU GPL v3 for details.\n");
 
 #ifdef DUMP_BOOTROM
 	ret = ymodem_send((unsigned char*)0xBFC00000, 0x2000, "BootROM.bin");

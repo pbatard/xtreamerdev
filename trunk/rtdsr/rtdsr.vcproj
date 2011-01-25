@@ -239,6 +239,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\include\realtek.h"
+				>
+			</File>
+			<File
 				RelativePath=".\include\util.h"
 				>
 			</File>
