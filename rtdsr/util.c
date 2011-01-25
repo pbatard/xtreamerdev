@@ -19,6 +19,7 @@
  *
  */
 
+#include "realtek.h"
 #include "util.h"
 
 
@@ -35,16 +36,6 @@
 #define SERIAL_LSR_DR            0x01    /* Data ready                  */
 #define SERIAL_LSR_THRE          0x20    /* Transmit Holding empty      */
 #define SERIAL_MSR_CTS           0x10    /* Clear to send               */
-
-
-/************************************************************************
- *  Timings for Xtreamer
- ************************************************************************/
-
-/* Estimated number of for(i=0;;i++); loops we can issue in a second */
-#define FOR_LOOP_CYCLE         200000
-/* Estimated number of calls to serial read we can issue in a second */
-#define SERIAL_CYCLE            48000
 
 
 /************************************************************************
@@ -68,14 +59,14 @@ static int serial_poll()
 	UINT32 lstat;
 	UINT32 rdata;
 
-	for(lstat = REG32(0xb801b214); lstat & SERIAL_LSR_DR; lstat = REG32(0xb801b214))
+	for(lstat = REG32(RTGALAXY_UART0_LSR); lstat & SERIAL_LSR_DR; lstat = REG32(RTGALAXY_UART0_LSR))
 	{
-		rdata = REG32(0xb801b200) & 0xff;
+		rdata = REG32(RTGALAXY_UART0_RBR_THR_DLL) & 0xff;
 
 #ifdef USE_HANDSHAKE
 		if (room <= HW_LIMIT_STOP * sizeof(*putptr) )
 		{
-			REG32(0xb801b210) &= ~SERIAL_MCR_RTS;
+			REG32(RTGALAXY_UART0_MCR) &= ~SERIAL_MCR_RTS;
 		}
 #endif
 		*putptr = (lstat << 8) | rdata;
@@ -110,7 +101,7 @@ void serial_write(UINT8  *p_param)
 		x = serial_poll();
 		x = x & SERIAL_LSR_THRE;
 #ifdef USE_HANDSHAKE
-		y = REG32(0xb801b218);
+		y = REG32(RTGALAXY_UART0_MSR);
 		y = y & SERIAL_MSR_CTS;
 		if ( x && y )
 #else
@@ -119,7 +110,7 @@ void serial_write(UINT8  *p_param)
 			break;
 	}
 
-	REG32(0xb801b200) = *p_param;
+	REG32(RTGALAXY_UART0_RBR_THR_DLL) = *p_param;
 }
 
 int serial_read()
@@ -133,11 +124,11 @@ int serial_read()
 			getptr= &recv_buffer[0];
 		}
 #ifdef USE_HANDSHAKE
-		if (((REG32(0xb801b210) & SERIAL_MCR_RTS) == 0 )&&
+		if (((REG32(RTGALAXY_UART0_MCR) & SERIAL_MCR_RTS) == 0 )&&
 			(((UINT32)getptr - (UINT32)putptr) &
 			((POLLSIZE - 1) * sizeof(*getptr))
 				>= HW_LIMIT_START * sizeof(*getptr)) ) {
-			REG32(0xb801b210) |= SERIAL_MCR_RTS;
+			REG32(RTGALAXY_UART0_MCR) |= SERIAL_MCR_RTS;
 		}
 #endif
 	}
@@ -147,14 +138,28 @@ int serial_read()
 /* Get a character with a timeout in seconds. Negative timeout means infinite */
 int _getchar(int timeout)
 {
-	int i, c;
+	int c;
+	unsigned long start_timer, current_timer, end_timer;
 
-	for (i=0; (timeout>=0)?(i<timeout*SERIAL_CYCLE):(1); i++) {
+	if (timeout >=0) {
+		REG32(RTGALAXY_TIMER_TC2CR) = 0x80000000;
+		start_timer = REG32(RTGALAXY_TIMER_TC2CVR);
+		end_timer = start_timer + timeout*CPU_FREQUENCY;
+	}
+
+	do {
 		c = serial_read();
 		if( c >= 0) {
 			return c;
 		}
-	}
+		if (timeout >= 0) {
+			current_timer = REG32(RTGALAXY_TIMER_TC2CVR);
+			if ( (current_timer > end_timer) &&
+				 ((end_timer >= start_timer) || (current_timer < start_timer)) ) {
+				break;
+			}
+		}
+	} while(1);
 
 	return -1;
 }
@@ -179,9 +184,23 @@ void _memcpy(void *dst, void *src, UINT32 size)
 		REG8(((UINT32)dst) + i) = REG8(((UINT32)src) + i);
 }
 
-void _sleep(int seconds)
+void _msleep(unsigned long ms)
 {
-	unsigned long i;
-	/* This seems to produce the approximative results on Xtreamer Pro */
-	for (i=0; i<FOR_LOOP_CYCLE*seconds; i++);
+	unsigned long start_timer, current_timer, end_timer;
+
+	/* Make sure the timer is started */
+	REG32(RTGALAXY_TIMER_TC2CR) = 0x80000000;
+
+	start_timer = REG32(RTGALAXY_TIMER_TC2CVR);
+	end_timer = start_timer + ms*(CPU_FREQUENCY/1000);
+
+	do {
+		current_timer = REG32(RTGALAXY_TIMER_TC2CVR);
+	} while ( (current_timer < end_timer) ||
+			  ((end_timer < start_timer) && (current_timer >= start_timer)) );
+}
+
+void _sleep(unsigned long seconds)
+{
+	_msleep(seconds*1000);
 }

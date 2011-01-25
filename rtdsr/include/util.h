@@ -46,7 +46,8 @@ void sync();
 void serial_write(UINT8 *p_param);
 int  serial_read(void);
 
-void _sleep(int seconds);
+void _msleep(unsigned long ms);
+void _sleep(unsigned long seconds);
 void _putchar(int c);
 int  _getchar(int timeout);
 void _memset(void *dst, UINT8 value, UINT32 size);
