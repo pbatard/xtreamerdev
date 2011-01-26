@@ -205,8 +205,7 @@ int parse_command(char *cmdline)
 
 
 
-/* more or less like SerialInputString(), but with echo and backspace */
-/* unlike the version in libblob, this version has a command history */
+/* read a command, with echo, backspace and history support*/
 int get_command(char *command, int len, int timeout)
 {
 	int c;

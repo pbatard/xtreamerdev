@@ -47,12 +47,40 @@ static UINT16 *putptr = &recv_buffer[0];
 static UINT16 *getptr = &recv_buffer[0];
 
 
-
 void sync()
 {
 	asm(".set mips3");
 	asm("sync");
 	asm(".set mips1");
+}
+
+/* Be mindful that with a 32 bit register and a 27 MHz clock,
+   the maximum timeout value is about 159 seconds */
+void _msleep(unsigned long ms)
+{
+	unsigned long start_timer, current_timer, end_timer;
+	unsigned long long check_overflow = ms*CPU_FREQUENCY/1000;
+
+	/* start Timer 2, if not already started */
+	REG32(RTGALAXY_TIMER_TC2CR) = 0x80000000;
+	start_timer = REG32(RTGALAXY_TIMER_TC2CVR);
+
+	/* use max range available if overflow */
+	if (check_overflow > 0x100000000LL) {
+		end_timer = start_timer-1;
+	} else {
+		end_timer = start_timer + ms*(CPU_FREQUENCY/1000);
+	}
+
+	do {
+		current_timer = REG32(RTGALAXY_TIMER_TC2CVR);
+	} while ( (current_timer < end_timer) ||
+			  ((end_timer < start_timer) && (current_timer >= start_timer)) );
+}
+
+void _sleep(unsigned long seconds)
+{
+	_msleep(seconds*1000);
 }
 
 static int serial_poll()
@@ -141,11 +169,17 @@ int _getchar(int timeout)
 {
 	int c;
 	unsigned long start_timer, current_timer, end_timer;
+	unsigned long long check_overflow;
 
 	if (timeout >=0) {
 		REG32(RTGALAXY_TIMER_TC2CR) = 0x80000000;
 		start_timer = REG32(RTGALAXY_TIMER_TC2CVR);
-		end_timer = start_timer + timeout*CPU_FREQUENCY;
+		check_overflow = timeout*CPU_FREQUENCY;
+		if (check_overflow > 0x100000000LL) {
+			end_timer = start_timer-1;
+		} else {
+			end_timer = start_timer + timeout*CPU_FREQUENCY;
+		}
 	}
 
 	do {
@@ -183,27 +217,6 @@ void _memcpy(void *dst, void *src, UINT32 size)
 	UINT32 i;
 	for (i=0; i<size; i++)
 		REG8(((UINT32)dst) + i) = REG8(((UINT32)src) + i);
-}
-
-void _msleep(unsigned long ms)
-{
-	unsigned long start_timer, current_timer, end_timer;
-
-	/* Make sure the timer is started */
-	REG32(RTGALAXY_TIMER_TC2CR) = 0x80000000;
-
-	start_timer = REG32(RTGALAXY_TIMER_TC2CVR);
-	end_timer = start_timer + ms*(CPU_FREQUENCY/1000);
-
-	do {
-		current_timer = REG32(RTGALAXY_TIMER_TC2CVR);
-	} while ( (current_timer < end_timer) ||
-			  ((end_timer < start_timer) && (current_timer >= start_timer)) );
-}
-
-void _sleep(unsigned long seconds)
-{
-	_msleep(seconds*1000);
 }
 
 int _strncmp(const char *s1, const char *s2, size_t n) {
