@@ -2,8 +2,9 @@ XCC = sde-gcc
 OBJDUMP= sde-objdump
 OBJCOPY= sde-objcopy
 
-CFLAGS        = -mno-gpopt -gdwarf-2 -O0 -G0 -DEJTAG -nostdlib -I include
+CFLAGS        = -mno-gpopt -gdwarf-2 -O0 -G0 -Wa,-W -nostdlib -I include
 CXXFLAGS      = $(CFLAGS) -Wa,--gdwarf2
+ASMFLAGS      = -W
 
 EXTRACFLAGS   = -Wall -mips32 -EL
 EXTRACXXFLAGS = $(EXTRACFLAGS) -fno-exceptions 
@@ -27,7 +28,7 @@ clean:
 	-rm -f *.o *.dis $(TARGET).elf $(TARGET).bin $(MEMORY_LAYOUT)
 
 %.o: %.c
-	$(XCC) -c -o $*.o $(CFLAGS) $(EXTRACFLAGS) $<
+	$(XCC) -c -o $*.o $(CXXFLAGS) $(EXTRACFLAGS) $<
 
 %.o: %.cxx
 	$(XCXX) -c -o $*.o $(CXXFLAGS) $(EXTRACXXFLAGS) $<
