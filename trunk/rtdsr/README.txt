@@ -22,5 +22,5 @@ To run the utility:
    When the setting file transfer is complete, it should display "hello world!"
    and you should get the "s/d/g/c>" prompt back by pressing enter. If not, then
    you will need to use a different hw_setting file.
-4. Type 'd' and tarnsfer the 'rtdsr.bin' that you compiled
+4. Type 'd' and transfer the 'rtdsr.bin' that you compiled
 5. Type 'g' to run the executable.

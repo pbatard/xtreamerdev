@@ -23,9 +23,11 @@
 #ifndef _COMMAND_H
 #define _COMMAND_H
 
-#define COMMAND_MAGIC (0x436d6420)	/* "Cmd " */
-#define CMDHIST_KEY_UP	'\025'		// ^U
-#define CMDHIST_KEY_DN	'\004'		// ^D
+#define COMMAND_MAGIC		(0x436d6420)	/* "Cmd " */
+#define ESCAPE_CHARACTER	0x1B	// Esc
+#define ESCAPE_SEQUENCE		0x5B	// [
+#define CMDHIST_KEY_UP		0x41	// Up
+#define CMDHIST_KEY_DN		0x42	// Down
 
 typedef int(*commandfunc_t)(int, char *[]);
 
@@ -80,10 +82,6 @@ extern commandlist_t *commands;
 
 void init_commands(void);
 int parse_command(char *cmdline);
-int GetCommand(char *command, int len, int timeout);
-int cmdhist_push( char *cmd );
-int cmdhist_next( char **cmd );
-int cmdhist_prev( char **cmd );
-int cmdhist_reset( void );
+int get_command(char *command, int len, int timeout);
 
 #endif

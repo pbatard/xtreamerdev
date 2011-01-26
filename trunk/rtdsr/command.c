@@ -42,10 +42,10 @@ static int	cmdhist_read		= 0;
 static int	cmdhist_write		= 0;
 static char cmdhistory[MAX_HIST][MAX_COMMANDLINE_LENGTH];
 
-int cmdhist_reset(void);
-int cmdhist_push(char *cmd);
-int cmdhist_next(char **cmd);
-int cmdhist_prev(char **cmd);
+static int	cmdhist_reset(void);
+static int	cmdhist_push(char *cmd);
+static int	cmdhist_next(char **cmd);
+static int	cmdhist_prev(char **cmd);
 
 
 void init_commands(void)
@@ -207,12 +207,13 @@ int parse_command(char *cmdline)
 
 /* more or less like SerialInputString(), but with echo and backspace */
 /* unlike the version in libblob, this version has a command history */
-int GetCommand(char *command, int len, int timeout)
+int get_command(char *command, int len, int timeout)
 {
 	int c;
 	int i;
 	int numRead;
 	int maxRead = len - 1;
+	int escape_start = 0;
 
 	cmdhist_reset();
 
@@ -227,7 +228,12 @@ int GetCommand(char *command, int len, int timeout)
 			return c;
 		}
 
-		if ((c == '\r') || (c == '\n')) {
+		if (c == ESCAPE_CHARACTER) {
+			escape_start = 1;
+		} else if ((c == ESCAPE_SEQUENCE) && (escape_start == 1)) {
+			escape_start = 2;
+		} else if ((c == '\r') || (c == '\n')) {
+			escape_start = 0;
 			command[i++] = '\0';
 
 			/* print newline */
@@ -235,14 +241,16 @@ int GetCommand(char *command, int len, int timeout)
 			cmdhist_push(command);
 			return(numRead);
 		} else if (c == '\b') {
+			escape_start = 0;
 			if (i > 0) {
 				i--;
 				numRead--;
 				/* cursor one position back. */
 				printf("\b \b");
 			}
-		} else if (c == CMDHIST_KEY_UP) {
+		} else if ((c == CMDHIST_KEY_UP) && (escape_start = 2)) {
 			char *cmd = NULL;
+			escape_start = 0;
 			/* get cmd from history */
 			if (cmdhist_next(&cmd) != 0)
 				continue;
@@ -256,8 +264,9 @@ int GetCommand(char *command, int len, int timeout)
 			printf("%s", cmd);
 			i = numRead = _strlen(cmd);
 			_strncpy(command, cmd, MAX_COMMANDLINE_LENGTH);
-		} else if (c == CMDHIST_KEY_DN) {
+		} else if ((c == CMDHIST_KEY_DN) && (escape_start = 2)) {
 			char *cmd = NULL;
+			escape_start = 0;
 			/* get cmd from history */
 			if (cmdhist_prev(&cmd) != 0)
 				continue;
@@ -272,6 +281,7 @@ int GetCommand(char *command, int len, int timeout)
 			i = numRead = _strlen(cmd);
 			_strncpy(command, cmd, MAX_COMMANDLINE_LENGTH);
 		} else {
+			escape_start = 0;
 			command[i++] = c;
 			numRead++;
 
@@ -285,7 +295,7 @@ int GetCommand(char *command, int len, int timeout)
 }
 
 /* Push a command to the history buffer */
-int cmdhist_push(char *cmd)
+static int cmdhist_push(char *cmd)
 {
 	if (!cmd)
 		return -EINVAL;
@@ -313,7 +323,7 @@ int cmdhist_push(char *cmd)
 
 
 /* Resets read ptr */
-int cmdhist_reset(void)
+static int cmdhist_reset(void)
 {
 	cmdhist_read = cmdhist_write;
 
@@ -321,7 +331,7 @@ int cmdhist_reset(void)
 }
 
 /* Gets next command in history */
-int cmdhist_next(char **cmd)
+static int cmdhist_next(char **cmd)
 {
 	int ptr;
 
@@ -356,7 +366,7 @@ int cmdhist_next(char **cmd)
 }
 
 /* Gets previous command from history */
-int cmdhist_prev(char **cmd)
+static int cmdhist_prev(char **cmd)
 {
 	int ptr;
 
@@ -387,9 +397,29 @@ int cmdhist_prev(char **cmd)
  * Supported commands
  */
 
+/* echo */
+static int echo(int argc, char* argv[])
+{
+	int c;
+
+	do {
+		c = _getchar(-1);
+		if (c < 0) {
+			break;
+		}
+		printf("0x%X\n", c);
+	} while (c != 0x20);
+
+	return 0;
+}
+
+static char echo_help[] = "echo\n"
+	"echo the characters typed in hex (space to quit)\n";
+
+__commandlist(echo, "echo", echo_help);
 
 /* help command */
-static int help(int argc, char *argv[])
+static int help(int argc, char* argv[])
 {
 	commandlist_t *cmd;
 
@@ -425,7 +455,7 @@ __commandlist(help, "help", help_help);
 
 
 /* reset console */
-int quit(int argc, char *argv[])
+static int quit(int argc, char* argv[])
 {
 	return PROGRAM_EXIT;
 }
@@ -437,7 +467,7 @@ __commandlist(quit, "quit", quit_help);
 
 
 /* reset console */
-int reset(int argc, char *argv[])
+static int reset(int argc, char* argv[])
 {
 	int i;
 
