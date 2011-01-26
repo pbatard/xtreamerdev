@@ -177,6 +177,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\commands.c"
+				>
+			</File>
+			<File
 				RelativePath=".\dvrmain.c"
 				>
 			</File>
