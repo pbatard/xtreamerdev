@@ -24,10 +24,16 @@
 #define CPU_FREQUENCY			27000000
 
 /* Base address for the RAM to use */
-#define DATA_TMP_ADDR			0xa0500000
+#define RAM_BASE				0xa0500000
 
 /* RAM size */
-#define DATA_TMP_SIZE			0x00010000
+#define RAM_SIZE				0x00010000
+
+/* Base address of the Flash */
+#define FLASH_BASE				0x00000000
+
+/* Flash size */
+#define FLASH_SIZE				0x00000000
 
 /* Size of a flash data sector (64KB) */
 #define NOR_BULK_SIZE			0x00010000

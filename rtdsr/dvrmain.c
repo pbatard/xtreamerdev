@@ -98,6 +98,9 @@ int dvrmain(void)
 	printf("This program is free software, you are welcome to redistribute it under\n");
 	printf("certain conditions. See http://www.gnu.org/licenses/gpl.html for details.\n\n");
 
+	printf("CPU:%d.%dMHz, RAM:0x%08x, FLASH:0x%08x\n", CPU_FREQUENCY/1000000,
+		(CPU_FREQUENCY%1000000)/100000, RAM_BASE, FLASH_BASE);
+
 	for (;;) {
 		printf("rtdsr> ");
 

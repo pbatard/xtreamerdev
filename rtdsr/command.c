@@ -33,9 +33,6 @@
 extern unsigned long __commandlist_start;
 extern unsigned long __commandlist_end;
 
-/* the first command */
-commandlist_t *commands;
-
 /* history */
 static int	cmdhist_entries		= 0;
 static int	cmdhist_read		= 0;
@@ -390,97 +387,3 @@ static int cmdhist_prev(char **cmd)
 
 	return 0;
 }
-
-
-/*
- * Supported commands
- */
-
-/* echo */
-static int echo(int argc, char* argv[])
-{
-	int c;
-
-	do {
-		c = _getchar(-1);
-		if (c < 0) {
-			break;
-		}
-		printf("0x%X\n", c);
-	} while (c != 0x20);
-
-	return 0;
-}
-
-static char echo_help[] = "echo\n"
-	"echo the characters typed in hex (space to quit)\n";
-
-__commandlist(echo, "echo", echo_help);
-
-/* help command */
-static int help(int argc, char* argv[])
-{
-	commandlist_t *cmd;
-
-	/* help on a command? */
-	if (argc >= 2) {
-		for (cmd = commands; cmd != NULL; cmd = cmd->next) {
-			if (_strncmp(cmd->name, argv[1],
-				   MAX_COMMANDLINE_LENGTH) == 0) {
-				printf("Help for '%s' ':\n\nUsage: %s", argv[1], cmd->help);
-				return 0;
-			}
-		}
-
-		return -EINVAL;
-	}
-
-	printf("The following commands are supported:");
-
-	for (cmd = commands; cmd != NULL; cmd = cmd->next) {
-		printf("\n* %s", cmd->name);
-	}
-
-	printf("\nUse \"help command\" to get help on a specific command\n");
-
-	return 0;
-}
-
-static char help_help[] = "help [command]\n"
-	"Get help on [command], "
-"	or a list of supported commands if a command is omitted.\n";
-
-__commandlist(help, "help", help_help);
-
-
-/* reset console */
-static int quit(int argc, char* argv[])
-{
-	return PROGRAM_EXIT;
-}
-
-static char quit_help[] = "quit\n"
-	"Quit application (return to boot ROM console)\n";
-
-__commandlist(quit, "quit", quit_help);
-
-
-/* reset console */
-static int reset(int argc, char* argv[])
-{
-	int i;
-
-	printf("          c");
-	for(i = 0; i < 100; i++)
-		printf("\n");
-
-	printf("c");
-
-	return 0;
-}
-
-static char reset_help[] = "reset\n"
-	"Reset terminal\n";
-
-__commandlist(reset, "reset", reset_help);
-
