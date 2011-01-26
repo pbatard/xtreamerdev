@@ -39,8 +39,6 @@
 #define FLASH_MAGICNO_NOR_SERIAL	0xde
 */
 
-
-
 /*
 extern UINT32 pages_per_block;
 extern UINT32 blocks_per_flash;
@@ -85,15 +83,12 @@ void display_buffer_hex(UINT32 addr, UINT32 size)
 	printf("\n" );
 }
 
-
 #define VERSION "0.4"
-//#define DUMP_BOOTROM
-#define YMODEM_RCV
-//#define SERIAL_ECHO
+
 int dvrmain(void)
 {
-	int r, c, ret;
-	char commandline[255];
+	int r;
+	char commandline[MAX_COMMANDLINE_LENGTH];
 
 	init_printf(NULL, putc);
 	init_commands();
@@ -103,12 +98,11 @@ int dvrmain(void)
 	printf("This program is free software, you are welcome to redistribute it under\n");
 	printf("certain conditions. See http://www.gnu.org/licenses/gpl.html for details.\n\n");
 
-	/* the command loop. endless, of course */
 	for (;;) {
 		printf("rtdsr> ");
 
 		/* wait 10 minutes for a command */
-		r = GetCommand(commandline, MAX_COMMANDLINE_LENGTH, 600);
+		r = get_command(commandline, MAX_COMMANDLINE_LENGTH, 600);
 
 		if (r > 0) {
 			if ((r = parse_command(commandline)) < 0 ) {
@@ -130,20 +124,6 @@ int dvrmain(void)
 		display_buffer_hex(DATA_TMP_ADDR, ret);
 	}
 	return 0;
-#endif
-
-#ifdef SERIAL_ECHO
-	do {
-		c = _getchar(-1);
-		if (c < 0) {
-			break;
-		}
-		if (c == 0x0D) {
-			printf("\n");
-		} else {
-			printf("%c", c);
-		}
-	} while (c != 0x1B);
 #endif
 
 /*
