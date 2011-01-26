@@ -16,10 +16,10 @@ SECTIONS
 		ymodem.o(.text)
 		command.o(.text)
 		commands.o(.text)
-/*		flashdev_n.o(.text)
+		flashdev_n.o(.text)
 		flashdev_p.o(.text)
 		flashdev_s.o(.text)
-*/		etext = .;
+		etext = .;
 	}
 
 	/* See command.h */

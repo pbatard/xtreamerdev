@@ -14,8 +14,7 @@ LIBS          = -Tboot.ld
 LD            = $(XCC)
 XCXX          = $(XCC)
 
-OBJECTS       = ram_boot.o dvrmain.o util.o printf.o ymodem.o command.o commands.o
-# flashdev_n.o flashdev_p.o flashdev_s.o
+OBJECTS       = ram_boot.o dvrmain.o util.o printf.o ymodem.o command.o commands.o flashdev_n.o flashdev_p.o flashdev_s.o
 TARGET	      = rtdsr
 MEMORY_LAYOUT = xMemLayout.map
 

@@ -23,6 +23,9 @@
 /* Adjust the following according to your CPU frequency (Hz) */
 #define CPU_FREQUENCY			27000000
 
+/* Should Flash operations be supported with this build? */
+#define WITH_FLASH_SUPPORT
+
 /* Base address for the RAM to use */
 #define RAM_BASE				0xa0500000
 

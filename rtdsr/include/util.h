@@ -23,6 +23,7 @@
 #define __UTIL_H__
 
 #define NULL				((void *)0)
+#define ULONG_MAX			0xFFFFFFFFUL
 #define REG8( addr )		(*(volatile UINT8 *) (addr))
 #define REG16( addr )		(*(volatile UINT16 *)(addr))
 #define REG32( addr )		(*(volatile UINT32 *)(addr))
@@ -56,5 +57,6 @@ void _memcpy(void *dst, void *src, UINT32 size);
 size_t _strlen(const char* s);
 int _strncmp(const char *s1, const char *s2, size_t n);
 char *_strncpy(char *dest, const char *src, size_t n);
+unsigned long _strtoul(const char *nptr, char **endptr, int base);
 
 #endif
