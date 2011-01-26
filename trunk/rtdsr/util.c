@@ -3,6 +3,7 @@
  * copyright (c) 2011 Pete B. <xtreamerdev@gmail.com>
  *
  * based on util.c from Realtek bootloader set_pll, not copyrighted
+ * based on strtoul.c from dietlibc by Felix von Leitner et al.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -246,4 +247,46 @@ char *_strncpy(char *dest, const char *src, size_t n) {
 	if (n)
 		dest[n-1]=0;
 	return dest;
+}
+
+int isspace(int ch)
+{
+	return (unsigned int)(ch - 9) < 5u  ||  ch == ' ';
+}
+
+unsigned long _strtoul(const char *nptr, char **endptr, int base)
+{
+	int neg = 0;
+	unsigned long v = 0;
+
+	while (isspace(*nptr)) ++nptr;
+	if (*nptr == '-') { neg=1; nptr++; }
+	if (*nptr == '+') ++nptr;
+	if (base==16 && nptr[0]=='0') goto skip0x;
+	if (!base) {
+		if (*nptr=='0') {
+			base=8;
+skip0x:
+			if (nptr[1]=='x'||nptr[1]=='X') {
+				nptr+=2;
+				base=16;
+			}
+		} else
+			base=10;
+	}
+	while (*nptr) {
+		register unsigned char c=*nptr;
+		c=(c>='a'?c-'a'+10:c>='A'?c-'A'+10:c<='9'?c-'0':0xff);
+		if (c>=base) break;
+		{
+			register unsigned long int w=v*base;
+			if (w<v) {
+				return ULONG_MAX;
+			}
+			v=w+c;
+		}
+		++nptr;
+	}
+	if (endptr) *endptr=(char *)nptr;
+	return (neg?-v:v);
 }

@@ -244,38 +244,44 @@ int get_command(char *command, int len, int timeout)
 				/* cursor one position back. */
 				printf("\b \b");
 			}
-		} else if ((c == CMDHIST_KEY_UP) && (escape_start = 2)) {
+		} else if (escape_start == 2) {
 			char *cmd = NULL;
 			escape_start = 0;
-			/* get cmd from history */
-			if (cmdhist_next(&cmd) != 0)
-				continue;
+			switch (c) {
+			case KEY_UP:
+				/* get cmd from history */
+				if (cmdhist_next(&cmd) != 0)
+					continue;
 
-			/* clear line */
-			while (numRead--) {
-				printf("\b \b");
+				/* clear line */
+				while (numRead--) {
+					printf("\b \b");
+				}
+
+				/* display it */
+				printf("%s", cmd);
+				i = numRead = _strlen(cmd);
+				_strncpy(command, cmd, MAX_COMMANDLINE_LENGTH);
+				break;
+			case KEY_DOWN:
+				/* get cmd from history */
+				if (cmdhist_prev(&cmd) != 0)
+					continue;
+
+				/* clear line */
+				while (numRead--) {
+					printf("\b \b");
+				}
+
+				/* display it */
+				printf("%s", cmd);
+				i = numRead = _strlen(cmd);
+				_strncpy(command, cmd, MAX_COMMANDLINE_LENGTH);
+				break;
+			default:
+				/* ignore all other sequences */
+				break;
 			}
-
-			/* display it */
-			printf("%s", cmd);
-			i = numRead = _strlen(cmd);
-			_strncpy(command, cmd, MAX_COMMANDLINE_LENGTH);
-		} else if ((c == CMDHIST_KEY_DN) && (escape_start = 2)) {
-			char *cmd = NULL;
-			escape_start = 0;
-			/* get cmd from history */
-			if (cmdhist_prev(&cmd) != 0)
-				continue;
-
-			/* clear line */
-			while (numRead--) {
-				printf("\b \b");
-			}
-
-			/* display it */
-			printf("%s", cmd);
-			i = numRead = _strlen(cmd);
-			_strncpy(command, cmd, MAX_COMMANDLINE_LENGTH);
 		} else {
 			escape_start = 0;
 			command[i++] = c;
