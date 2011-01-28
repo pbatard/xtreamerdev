@@ -206,6 +206,16 @@ void _putchar(int c)
 	serial_write(&b);
 }
 
+void _putc(void* p, char c)
+{
+	if (c == '\n') {
+		c = 0xd;
+		serial_write(&c);
+		c = 0xa;
+	}
+	serial_write(&c);
+}
+
 void _memset(void *dst, UINT8 value, UINT32 size)
 {
 	UINT32 i;

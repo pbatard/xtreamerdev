@@ -23,22 +23,10 @@
 /* Adjust the following according to your CPU frequency (Hz) */
 #define CPU_FREQUENCY			27000000
 
-/* Should Flash operations be supported with this build? */
-#define WITH_FLASH_SUPPORT
-
 /* Base address for the RAM to use */
 #define RAM_BASE				0xa0500000
 
-/* RAM size */
+/* RAM size to use */
 #define RAM_SIZE				0x00010000
-
-/* Base address of the Flash */
-#define FLASH_BASE				0x00000000
-
-/* Flash size */
-#define FLASH_SIZE				0x00000000
-
-/* Size of a flash data sector (64KB) */
-#define NOR_BULK_SIZE			0x00010000
 
 #endif
