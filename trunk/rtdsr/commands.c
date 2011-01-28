@@ -34,6 +34,19 @@
 /* the first command */
 commandlist_t *commands;
 
+/* unsigned long to fixed length hexascii */
+static void ul2ha(unsigned long num, char* bf)
+{
+	unsigned long dgt, d=0x10000000;
+
+	while (d!=0) {
+		dgt = num/d;
+		*bf++ = dgt+(dgt<10?'0':'A'-10);
+		num %= d;
+		d = d>>4;
+	}
+	*bf=0;
+}
 
 static unsigned long display_buffer_hex(unsigned long addr, unsigned long size)
 {
@@ -102,10 +115,9 @@ __commandlist(echo, "echo", echo_help);
 /* flash read */
 static int fread(int argc, char* argv[])
 {
-	UINT32 current_block = 0;
-//	UINT32 end_page;
 	n_device_type* device;
-	int res;
+	unsigned long offset=0, size=0, dest=RAM_BASE;
+	unsigned long start_page;
 
 	/* Doubt anybody will need anything but NAND */
 	if ((REG32(RTGALAXY_INFO_FLASH) & RTGALAXY_FLASH_TYPE_MASK) != RTGALAXY_FLASH_TYPE_NAND) {
@@ -113,56 +125,55 @@ static int fread(int argc, char* argv[])
 		return -1;
 	}
 
-	/* Identify NAND chip */
+	/* Identify NAND chip properties */
 	if (do_identify_n((void**)&device) < 0) {
 		printf("Unable to detect NAND Flash type\n");
-		return 0;
+		return -1;
 	}
 	printf("NAND Flash: %s, Size:%dMB, PageSize:0x%x\n",
 		device->string, (device->size)/0x100000, device->PageSize);
 
+	if (argc > 1) {
+		offset = _strtoul(argv[1], NULL, 16);
+		if (offset % device->PageSize) {
+			printf("offset 0x%08x is not a multiple of PageSize (0x%x) - aborting\n", offset, device->PageSize);
+			return -1;
+		}
+	}
+	if (argc > 2) {
+		size = _strtoul(argv[2], NULL, 16);
+		if (size % device->PageSize) {
+			printf("size 0x%x is not a multiple of PageSize (0x%x) - aborting\n", size, device->PageSize);
+			return -1;
+		}
+	}
+	if (size == 0) {
+		size = device->PageSize;
+	}
+	if (argc > 3) {
+		dest = _strtoul(argv[3], NULL, 16);
+	}
+
 	do_init_n(device);
 
-	/******************************
-	* copy hwsetting in flash to DDR
-	******************************/
-	res = do_read_n(device, &current_block, (UINT8*)RAM_BASE, device->PageSize, BLOCK_HWSETTING);
-	if (res) {
+	start_page = offset/device->PageSize;
+	size = ((size+device->PageSize-1)/device->PageSize)*device->PageSize;
+
+	/* Read a set of pages */
+	if (nf_read(device, start_page, (UINT8*)dest, size)) {
 		printf("Reading of Flash failed\n");
-		return 0;
+		return -1;
 	}
-	printf("Copied %d block(s) to RAM:%x\n", current_block, RAM_BASE);
-	return 0;
-#if 0
-	/******************************
-	* start to program hwsetting
-	******************************/
-	// main copy of hwsetting data
-	end_page = (*do_write)( device, (UINT8*)DATA_TMP_ADDR, (UINT8 *)current_block, DATA_TMP_SIZE, BLOCK_HWSETTING);
+	printf("Read 0x%x bytes (%d page(s)) starting at offset 0x%08x (page %d)\n",
+		size, size/device->PageSize, start_page*device->PageSize, start_page);
 
-	if (end_page == -1)
-	{
-		printf("main copy of hwsetting error!!\n");
-		return -102;
-	}
-	// calculate next block start page
-	current_block = (end_page / pages_per_block) + 1;
-	// backup copy of hwsetting data
-	end_page = (*do_write)( device, (UINT8*)DATA_TMP_ADDR, (UINT8 *)current_block, DATA_TMP_SIZE, BLOCK_HWSETTING);
-
-	if (end_page == -1)
-	{
-		printf("backup copy of hwsetting error!!\n");
-		return -103;
-	}
-	// calculate next block start page
-	current_block = (end_page / pages_per_block) + 1;
-#endif
 	return 0;
 }
 
-static char fread_help[] = "fread\n"
-	"\nfread the first few blocks of flash to RAM\n";
+static char fread_help[] = "fread [offset] [size] [dest]\n"
+	"\nRead <size> bytes, starting at <offset> from beginning of Flash, to <dest>\n"
+	"If omitted, offset=0, size=<NAND PageSize> and dest=<RAM_BASE>\n"
+	"<offset> and <size> must be multiples of the NAND PageSize\n";
 
 __commandlist(fread, "fread", fread_help);
 
@@ -264,7 +275,7 @@ __commandlist(reset, "reset", reset_help);
 /* receive a file through the Ymodem protocol */
 static int yreceive(int argc, char* argv[])
 {
-	static unsigned long address = RAM_BASE, max_size = RAM_SIZE;
+	static unsigned long address = RAM_BASE, max_size = 1024*1024;
 	int r;
 
 	if (argc > 1) {
@@ -299,11 +310,14 @@ static int ysend(int argc, char* argv[])
 	if (argc > 2) {
 		size = _strtoul(argv[2], NULL, 16);
 	}
-	if (argc > 3) {
-		// TODO
+	if (argc <= 3) {
+		ul2ha(address, filename);
+		filename[8] = '_';
+		ul2ha(size, filename+9);
+		filename[17] = '.';
 	}
 
-	r = ymodem_send((unsigned char*)address, size, "test.bin");
+	r = ymodem_send((unsigned char*)address, size, (argc>3)?argv[3]:filename);
 	return (r > 0)?0:r;
 }
 
