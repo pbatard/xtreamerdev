@@ -17,8 +17,6 @@ SECTIONS
 		command.o(.text)
 		commands.o(.text)
 		flashdev_n.o(.text)
-		flashdev_p.o(.text)
-		flashdev_s.o(.text)
 		etext = .;
 	}
 

@@ -28,14 +28,8 @@
 #include "command.h"
 #include "ymodem.h"
 #include "flashdev_n.h"
-#include "flashdev_p.h"
-#include "flashdev_s.h"
-
 
 #define FLASH_MAGICNO_NOR_PARALLEL	0xbe
-#define FLASH_MAGICNO_NAND			0xce
-#define FLASH_MAGICNO_NOR_SERIAL	0xde
-
 
 /* the first command */
 commandlist_t *commands;
@@ -82,38 +76,6 @@ static unsigned long display_buffer_hex(unsigned long addr, unsigned long size)
  * Supported commands
  */
 
-/* detect flash type */
-static int detect_flash(int argc, char* argv[])
-{
-	printf("Detecting flash type: ");
-	switch(REG32(RTGALAXY_INFO_FLASH) & RTGALAXY_FLASH_TYPE_MASK)
-	{
-		case RTGALAXY_FLASH_TYPE_NOR_PARALLEL:
-			printf("NOR Parallel\n");
-			break;
-
-		case RTGALAXY_FLASH_TYPE_NOR_SERIAL:
-			printf("NOR Serial\n");
-			break;
-
-		case RTGALAXY_FLASH_TYPE_NAND:
-			printf("NAND (Parallel)\n");
-			break;
-
-		case RTGALAXY_FLASH_TYPE_PCI:
-		default:
-			printf("unknown!\n");
-			break;
-	}
-
-	return 0;
-}
-
-static char detect_flash_help[] = "detect_flash\n"
-	"\nDetect the Flash type\n";
-
-__commandlist(detect_flash, "detect_flash", detect_flash_help);
-
 
 /* serial echo */
 static int echo(int argc, char* argv[])
@@ -135,6 +97,74 @@ static char echo_help[] = "echo\n"
 	"\nEcho the characters typed in hexa (space to quit)\n";
 
 __commandlist(echo, "echo", echo_help);
+
+
+/* flash read */
+static int fread(int argc, char* argv[])
+{
+	UINT32 current_block = 0;
+//	UINT32 end_page;
+	n_device_type* device;
+	int res;
+
+	/* Doubt anybody will need anything but NAND */
+	if ((REG32(RTGALAXY_INFO_FLASH) & RTGALAXY_FLASH_TYPE_MASK) != RTGALAXY_FLASH_TYPE_NAND) {
+		printf("Flash type not supported (NAND only)\n");
+		return -1;
+	}
+
+	/* Identify NAND chip */
+	if (do_identify_n((void**)&device) < 0) {
+		printf("Unable to detect NAND Flash type\n");
+		return 0;
+	}
+	printf("NAND Flash: %s, Size:%dMB, PageSize:0x%x\n",
+		device->string, (device->size)/0x100000, device->PageSize);
+
+	do_init_n(device);
+
+	/******************************
+	* copy hwsetting in flash to DDR
+	******************************/
+	res = do_read_n(device, &current_block, (UINT8*)RAM_BASE, device->PageSize, BLOCK_HWSETTING);
+	if (res) {
+		printf("Reading of Flash failed\n");
+		return 0;
+	}
+	printf("Copied %d block(s) to RAM:%x\n", current_block, RAM_BASE);
+	return 0;
+#if 0
+	/******************************
+	* start to program hwsetting
+	******************************/
+	// main copy of hwsetting data
+	end_page = (*do_write)( device, (UINT8*)DATA_TMP_ADDR, (UINT8 *)current_block, DATA_TMP_SIZE, BLOCK_HWSETTING);
+
+	if (end_page == -1)
+	{
+		printf("main copy of hwsetting error!!\n");
+		return -102;
+	}
+	// calculate next block start page
+	current_block = (end_page / pages_per_block) + 1;
+	// backup copy of hwsetting data
+	end_page = (*do_write)( device, (UINT8*)DATA_TMP_ADDR, (UINT8 *)current_block, DATA_TMP_SIZE, BLOCK_HWSETTING);
+
+	if (end_page == -1)
+	{
+		printf("backup copy of hwsetting error!!\n");
+		return -103;
+	}
+	// calculate next block start page
+	current_block = (end_page / pages_per_block) + 1;
+#endif
+	return 0;
+}
+
+static char fread_help[] = "fread\n"
+	"\nfread the first few blocks of flash to RAM\n";
+
+__commandlist(fread, "fread", fread_help);
 
 
 /* display help */

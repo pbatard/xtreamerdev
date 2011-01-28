@@ -51,6 +51,7 @@ int  serial_read(void);
 void _msleep(unsigned long ms);
 void _sleep(unsigned long seconds);
 void _putchar(int c);
+void _putc(void* p, char c);
 int  _getchar(int timeout);
 void _memset(void *dst, UINT8 value, UINT32 size);
 void _memcpy(void *dst, void *src, UINT32 size);

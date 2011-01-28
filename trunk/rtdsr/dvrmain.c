@@ -26,24 +26,6 @@
 #include "ymodem.h"
 #include "command.h"
 
-
-/*
-extern UINT32 pages_per_block;
-extern UINT32 blocks_per_flash;
-*/
-
-/* for printf -*/
-void putc(void* p, char c)
-{
-	if (c == '\n') {
-		c = 0xd;
-		serial_write(&c);
-		c = 0xa;
-	}
-	serial_write(&c);
-}
-
-
 #define VERSION "0.4"
 
 int dvrmain(void)
@@ -52,7 +34,7 @@ int dvrmain(void)
 	unsigned short cpu_id;
 	char commandline[MAX_COMMANDLINE_LENGTH];
 
-	init_printf(NULL, putc);
+	init_printf(NULL, _putc);
 	init_commands();
 
 	printf("\n\nrtdsr v" VERSION ", Copyright (c) 2011 Pete B. <xtreamerdev@gmail.com>\n\n");
@@ -67,8 +49,8 @@ int dvrmain(void)
 		return -1;
 	}
 
-	printf("CPU:%d.%dMHz, RAM_BASE:0x%08x, FLASH_BASE:0x%08x\n", CPU_FREQUENCY/1000000,
-		(CPU_FREQUENCY%1000000)/100000, RAM_BASE, FLASH_BASE);
+	printf("Configured with CPU:%d.%dMHz, RAM_BASE:0x%08x\n", CPU_FREQUENCY/1000000,
+		(CPU_FREQUENCY%1000000)/100000, RAM_BASE);
 
 	for (;;) {
 		printf("rtdsr> ");
