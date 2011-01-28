@@ -26,7 +26,7 @@
 #include "ymodem.h"
 #include "command.h"
 
-#define VERSION "0.4"
+#define VERSION "0.5"
 
 int dvrmain(void)
 {
