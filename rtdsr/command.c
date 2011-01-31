@@ -125,14 +125,11 @@ static void parse_args(char *cmdline, int *argc, char **argv)
 #endif
 }
 
-
-
-
 /* return the number of commands that match */
 static int get_num_command_matches(char *cmdline)
 {
 	commandlist_t *cmd;
-	int len;
+	size_t len;
 	int num_matches = 0;
 
 	len = _strlen(cmdline);
@@ -151,7 +148,6 @@ static int get_num_command_matches(char *cmdline)
 
 	return num_matches;
 }
-
 
 int parse_command(char *cmdline)
 {
@@ -199,8 +195,6 @@ int parse_command(char *cmdline)
 
 	return -ECOMMAND;
 }
-
-
 
 /* read a command, with echo, backspace and history support*/
 int get_command(char *command, int len, int timeout)
@@ -322,7 +316,6 @@ static int cmdhist_push(char *cmd)
 
 	return 0;
 }
-
 
 /* Resets read ptr */
 static int cmdhist_reset(void)

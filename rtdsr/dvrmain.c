@@ -26,7 +26,7 @@
 #include "ymodem.h"
 #include "command.h"
 
-#define VERSION "0.6"
+extern int info(int argc, char* argv[]);
 
 int dvrmain(void)
 {
@@ -37,10 +37,8 @@ int dvrmain(void)
 	init_printf(NULL, _putc);
 	init_commands();
 
-	printf("\n\nrtdsr v" VERSION ", Copyright (c) 2011 Pete B. <xtreamerdev@gmail.com>\n\n");
-	printf("rtdsr comes with ABSOLUTELY NO WARRANTY.\n");
-	printf("This program is free software, you are welcome to redistribute it under\n");
-	printf("certain conditions. See http://www.gnu.org/licenses/gpl.html for details.\n\n");
+	printf("\n");
+	info(0, NULL);
 
 	/* check CPU ID */
 	cpu_id = REG32(RTGALAXY_SB2_CHIP_ID) & 0xffff;
@@ -48,9 +46,6 @@ int dvrmain(void)
 		printf("Wrong CPU ID detected (%04X) - aborting\n", cpu_id);
 		return -1;
 	}
-
-	printf("Configured with CPU:%d.%dMHz, RAM_BASE:0x%08x\n", CPU_FREQUENCY/1000000,
-		(CPU_FREQUENCY%1000000)/100000, RAM_BASE);
 
 	for (;;) {
 		printf("rtdsr> ");

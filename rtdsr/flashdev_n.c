@@ -33,10 +33,9 @@ UINT32 pages_per_block;
 UINT32 blocks_per_flash;
 
 #define PAGE_TMP_ADDR		FLASH_TMP_ADDR
-#define BLK_STATE_BASE		FLASH_BST_ADDR
+#define BLK_STATE_BASE		FLASH_BST
 
 static UINT8 *blk_state;				// bootcode block state array
-static UINT8 *blk_state_copy;			// second unmodified copy, for write operations
 static UINT32 blk_state_len;			// length of bootcode block state array
 static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search_depth, UINT32 offset);
 static int set_block_state(UINT32 block_no, UINT8 state);
@@ -398,12 +397,16 @@ int nf_write(n_device_type* device,      //flash device
 	UINT32 current_page;
 	UINT32 signature;
 	UINT8* data_ptr = buf;
+	UINT8 *blk_state_copy = blk_state + blk_state_len;
 
 	if ((device == NULL) || (size % device->BlockSize)) {
 		return -1;
 	}
 
-	//erase blocks we need to save data
+	// create a copy of the BST, before it is modified by erase
+	_memcpy(blk_state_copy, blk_state, blk_state_len);
+
+	// erase blocks we need to save data
 	if (nf_erase(device, start_block, size) < 0) {
 		printf("erase failed\n");
 		return -1;
@@ -414,7 +417,7 @@ int nf_write(n_device_type* device,      //flash device
 	// write data to nand flash pages
 	while (data_len != 0)
 	{
-		// read signature from the table at FLASH_BST_ADDR
+		// read signature from the table at FLASH_BST
 		signature = (UINT32)blk_state_copy[current_page/pages_per_block];
 		// set signature to pp buffer and wait for writing to spare cell
 		nf_set_spare(signature);
@@ -595,7 +598,6 @@ void nf_init(n_device_type* device)
 	for (i = 0; i < blk_state_len; i++)
 		REG8(BLK_STATE_BASE + i) = BLOCK_UNDETERMINE;
 	blk_state = (UINT8*)BLK_STATE_BASE;
-	blk_state_copy = (UINT8*)(BLK_STATE_BASE + blk_state_len);
 
 	/* fill block state table */
 	// search with non-exist magic no (this guarantees we can visit to the end of the bootcode blocks)
@@ -729,7 +731,7 @@ int nf_read(n_device_type *device, unsigned long start_page, unsigned char* buf,
 			break;
 
 		default:
-			printf("page %d is marked not clean!\n", start_page);
+			printf("page %d is flagged not clean!\n", start_page);
 			return (-1);
 		}
 
@@ -793,7 +795,7 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 		switch (res)
 		{
 		case DATA_ALL_ONE:
-			blk_state[blk] = blk_state_copy[blk] = BLOCK_CLEAN;
+			set_block_state(blk, BLOCK_CLEAN);
 			continue;
 
 		case 0:		// read to table success
@@ -802,7 +804,7 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 			break;
 
 		default:	// read to table has error
-			blk_state[blk] = blk_state_copy[blk] = BLOCK_BAD;
+			set_block_state(blk, BLOCK_BAD);
 			continue;	// next block
 		}
 
@@ -812,7 +814,7 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 			continue;	// should not happen
 
 		// update with new magic no. in spare area
-		blk_state[blk] = blk_state_copy[blk] = (UINT8)(spare & 0xff);
+		set_block_state(blk, (UINT8)(spare & 0xff));
 	}
 
 	return (0);
