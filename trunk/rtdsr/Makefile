@@ -4,9 +4,8 @@ OBJCOPY= sde-objcopy
 
 CFLAGS        = -mno-gpopt -gdwarf-2 -O0 -G0 -Wa,-W -nostdlib -I include
 CXXFLAGS      = $(CFLAGS) -Wa,--gdwarf2
-ASMFLAGS      = -W
 
-EXTRACFLAGS   = -Wall -mips32 -EL
+EXTRACFLAGS   = -Wall -march=mips32r2 -EL
 EXTRACXXFLAGS = $(EXTRACFLAGS) -fno-exceptions 
 
 LDFLAGS       = -nostartfiles -L/lib -I/include

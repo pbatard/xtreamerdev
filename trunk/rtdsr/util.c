@@ -169,7 +169,7 @@ int serial_read()
 int _getchar(int timeout)
 {
 	int c;
-	unsigned long start_timer, current_timer, end_timer;
+	unsigned long start_timer = 0, current_timer, end_timer = 0;
 	unsigned long long check_overflow;
 
 	if (timeout >=0) {

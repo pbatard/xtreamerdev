@@ -35,6 +35,7 @@ commandlist_t *commands;
 /* Flash info */
 n_device_type* device = NULL;
 
+
 /* unsigned long to fixed length hexascii */
 static void ul2ha(unsigned long num, char* bf)
 {
@@ -49,6 +50,7 @@ static void ul2ha(unsigned long num, char* bf)
 	*bf=0;
 }
 
+/* hexdump */
 static unsigned long display_buffer_hex(unsigned long addr, unsigned long size)
 {
 	register unsigned long i, j, k;
@@ -89,31 +91,9 @@ static unsigned long display_buffer_hex(unsigned long addr, unsigned long size)
 }
 
 
-/*
- * Supported commands
- */
-
-
-/* serial echo */
-static int echo(int argc, char* argv[])
-{
-	int c;
-
-	do {
-		c = _getchar(-1);
-		if (c < 0) {
-			break;
-		}
-		printf("0x%X\n", c);
-	} while (c != 0x20);
-
-	return 0;
-}
-
-static char echo_help[] = "echo\n"
-	"\nEcho the characters typed in hexa (space to quit)\n";
-
-__commandlist(echo, "echo", echo_help);
+/*************************************/
+/*        Supported commands         */
+/*************************************/
 
 
 /* flash info */
@@ -142,9 +122,10 @@ static int flash_info(int argc, char* argv[])
 }
 
 static char finfo_help[] = "finfo\n"
-	"\nProvide info (page size, block size, total size) about the Flash\n";
+	"\nProvide info about the Flash (type, total/block/page sizes) and reads/updates\n"
+	"the Block State Table located at <FLASH_BST>\n";
 
-__commandlist(flash_info, "finfo", finfo_help);
+__commandlist(flash_info, "finfo    [fi]", finfo_help);
 
 
 /* flash read */
@@ -160,14 +141,14 @@ static int flash_read(int argc, char* argv[])
 	if (argc > 1) {
 		offset = _strtoul(argv[1], NULL, 16);
 		if (offset % device->PageSize) {
-			printf("offset 0x%08x is not a multiple of PageSize (0x%x) - aborting\n", offset, device->PageSize);
+			printf("Offset 0x%08x is not a multiple of PageSize (0x%x) - aborting\n", offset, device->PageSize);
 			return -1;
 		}
 	}
 	if (argc > 2) {
 		size = _strtoul(argv[2], NULL, 16);
 		if (size % device->PageSize) {
-			printf("size 0x%x is not a multiple of PageSize (0x%x) - aborting\n", size, device->PageSize);
+			printf("Size 0x%x is not a multiple of PageSize (0x%x) - aborting\n", size, device->PageSize);
 			return -1;
 		}
 	}
@@ -196,7 +177,7 @@ static char fread_help[] = "fread [offset] [size] [dest]\n"
 	"If omitted, offset=0, size=<NAND PageSize> and dest=<RAM_BASE>\n"
 	"<offset> and <size> must be multiples of the NAND BlockSize\n";
 
-__commandlist(flash_read, "fread", fread_help);
+__commandlist(flash_read, "fread    [fr]", fread_help);
 
 
 /* flash write */
@@ -217,16 +198,16 @@ static int flash_write(int argc, char* argv[])
 
 	offset = _strtoul(argv[1], NULL, 16);
 	if (offset % device->BlockSize) {
-		printf("offset 0x%08x is not a multiple of BlockSize (0x%x) - aborting\n", offset, device->BlockSize);
+		printf("Offset 0x%08x is not a multiple of BlockSize (0x%x) - aborting\n", offset, device->BlockSize);
 		return -1;
 	}
 	size = _strtoul(argv[2], NULL, 16);
 	if (size % device->BlockSize) {
-		printf("size 0x%x is not a multiple of BlockSize (0x%x) - aborting\n", size, device->BlockSize);
+		printf("Size 0x%x is not a multiple of BlockSize (0x%x) - aborting\n", size, device->BlockSize);
 		return -1;
 	}
 	if (size == 0) {
-		printf("size cannot be zero\n");
+		printf("Size cannot be zero\n");
 		return -1;
 	}
 	if (argc > 3) {
@@ -260,7 +241,7 @@ static char fwrite_help[] = "fwrite <offset> <size> [src]\n"
 	"<offset> and <size> are mandatory and must be multiples of the NAND PageSize\n"
 	"If omitted, src=<RAM_BASE>\n";
 
-__commandlist(flash_write, "fwrite", fwrite_help);
+__commandlist(flash_write, "fwrite   [fw]", fwrite_help);
 
 
 /* display help */
@@ -270,16 +251,17 @@ static int help(int argc, char* argv[])
 
 	/* help on a command? */
 	if (argc >= 2) {
+		size_t len = _strlen(argv[1]);
+
 		for (cmd = commands; cmd != NULL; cmd = cmd->next) {
-			if (_strncmp(cmd->name, argv[1],
-				   MAX_COMMANDLINE_LENGTH) == 0) {
+			if (_strncmp(cmd->name, argv[1], len) == 0) {
 				printf("Usage: %s", cmd->help);
 				return 0;
 			}
 		}
-		printf("unknown command %s\n", argv[1]);
+		printf("Unknown command '%s'\n", argv[1]);
 
-		return -EINVAL;
+		return 0;
 	}
 
 	printf("The following commands are supported:");
@@ -297,7 +279,28 @@ static int help(int argc, char* argv[])
 static char help_help[] = "help [command]\n"
 	"\nGet help on <command>, or a list of supported commands if a command is omitted\n";
 
-__commandlist(help, "help", help_help);
+__commandlist(help, "help     [h]", help_help);
+
+
+/* program info */
+int info(int argc, char* argv[])
+{
+	printf("rtdsr v" VERSION ", Copyright (c) 2011 Pete B. <xtreamerdev@gmail.com>\n\n");
+	printf("rtdsr comes with ABSOLUTELY NO WARRANTY.\n");
+	printf("This program is free software, you are welcome to redistribute it under\n");
+	printf("certain conditions. See http://www.gnu.org/licenses/gpl.html for details.\n\n");
+
+	printf("Configured with CPU:%d.%dMHz, RAM_BASE:0x%08x, FLASH_BST:0x%08x\n",
+		CPU_FREQUENCY/1000000, (CPU_FREQUENCY%1000000)/100000, RAM_BASE, FLASH_BST);
+	printf("Numeric parameters are to be provided in hexadecimal\n");
+
+	return 0;
+}
+
+static char info_help[] = "info\n"
+	"\nInformation about this program\n";
+
+__commandlist(info, "info     [i]", info_help);
 
 
 /* hexdump of memory */
@@ -323,7 +326,7 @@ static char hexdump_help[] = "memdump [address] [size]\n"
 	"If no parameter is given, hexdump continues from last address (or <RAM_BASE>)\n"
 	"Can be interrupted with Ctrl-C\n";
 
-__commandlist(hexdump, "memdump", hexdump_help);
+__commandlist(hexdump, "memdump  [m]", hexdump_help);
 
 
 /* quit application */
@@ -335,7 +338,7 @@ static int quit(int argc, char* argv[])
 static char quit_help[] = "quit\n"
 	"\nQuit application (return to Boot ROM console)\n";
 
-__commandlist(quit, "quit", quit_help);
+__commandlist(quit, "quit     [q]", quit_help);
 
 
 /* reset console */
@@ -355,7 +358,87 @@ static int reset(int argc, char* argv[])
 static char reset_help[] = "reset\n"
 	"\nReset the console\n";
 
-__commandlist(reset, "reset", reset_help);
+__commandlist(reset, "reset    [r]", reset_help);
+
+
+/* write a byte */
+static int wbyte(int argc, char* argv[])
+{
+	unsigned long address, value;
+
+	if (argc < 3) {
+		printf("you must supply an address and a value\n");
+		return -1;
+	}
+
+	address = _strtoul(argv[1], NULL, 16);
+	value = _strtoul(argv[2], NULL, 16);
+	if (value > 0xFF) {
+		printf("please supply a byte value\n");
+		return -1;
+	}
+
+	REG8(address) = (UINT8)value;
+
+	return 0;
+}
+
+static char wbyte_help[] = "wbyte <address> <byte>\n"
+	"\nWrite byte <byte> at address <address>\n";
+
+__commandlist(wbyte, "wbyte    [wb]", wbyte_help);
+
+
+/* write a word */
+static int wword(int argc, char* argv[])
+{
+	unsigned long address, value;
+
+	if (argc < 3) {
+		printf("You must supply an address and a value\n");
+		return -1;
+	}
+
+	address = _strtoul(argv[1], NULL, 16);
+	value = _strtoul(argv[2], NULL, 16);
+	if (value > 0xFFFF) {
+		printf("Please supply a word value\n");
+		return -1;
+	}
+
+	REG16(address) = (UINT16)value;
+
+	return 0;
+}
+
+static char wword_help[] = "wword <address> <word>\n"
+	"\nWrite word <word> at address <address>\n";
+
+__commandlist(wword, "wword    [ww]", wword_help);
+
+
+/* write a long */
+static int wlong(int argc, char* argv[])
+{
+	unsigned long address, value;
+
+	if (argc < 3) {
+		printf("You must supply an address and a value\n");
+		return -1;
+	}
+
+	address = _strtoul(argv[1], NULL, 16);
+	value = _strtoul(argv[2], NULL, 16);
+
+	REG32(address) = value;
+
+	return 0;
+}
+
+static char wlong_help[] = "wlong <address> <long>\n"
+	"\nwrite long <long> at address <address>\n";
+
+__commandlist(wlong, "wlong    [wl]", wlong_help);
 
 
 /* receive a file through the Ymodem protocol */
@@ -380,7 +463,7 @@ static char yreceive_help[] = "yreceive [address] [max_size]\n"
 	"If <address> is not provided, <RAM_BASE> will be used\n"
 	"<max_size> can also be used to specify the maximum area to use from <address>\n";
 
-__commandlist(yreceive, "yreceive", yreceive_help);
+__commandlist(yreceive, "yreceive [yr]", yreceive_help);
 
 
 /* Send a data block through the Ymodem protocol */
@@ -413,4 +496,4 @@ static char ysend_help[] = "ysend [address] [size] [filename]\n"
 	"If <size> is not specified, the default 8KB size (0x2000) is used\n"
 	"If <filename> is not specified, it is set to '<address>_<size>.bin'\n";
 
-__commandlist(ysend, "ysend", ysend_help);
+__commandlist(ysend, "ysend    [ys]", ysend_help);

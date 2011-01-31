@@ -20,6 +20,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#define VERSION "0.6"
+
 /* Adjust the following according to your CPU frequency (Hz)       */
 #define CPU_FREQUENCY			27000000
 
@@ -29,7 +31,7 @@
 #define FLASH_TMP_ADDR			0xa0300000
 
 /* Another RAM buffer to store the Block State Table for the flash */
-#define FLASH_BST_ADDR			0xa0400000
+#define FLASH_BST				0xa0400000
 
 /* Default address for the RAM area                                */
 #define RAM_BASE				0xa0500000
