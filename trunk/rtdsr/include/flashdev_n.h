@@ -181,29 +181,20 @@ typedef struct  __attribute__ ((__packed__)){
 
 #define DATA_ALL_ONE		1			// read one page and all bit is '1'
 #define NULL				((void *)0)
-#define NAND_BOOTCODE_SIZE	0x1000000	// bootcode area size in NAND flash (first 16MB)
+#define NAND_BOOTCODE_SIZE	0x2000000	// bootcode area size in NAND flash (first 32MB)
 #define NAND_ENV_SIZE		0x10000		// size of env param + magic no
 
 #define BBT_SIZE 			200			// size of bad block table
 #define BB_INIT 			0xF0000000	// initial bad_block value in bad block table
-#define	RB_INIT				0xF1000000	// initial remap_block value in bad block table
+#define RB_INIT				0xF1000000	// initial remap_block value in bad block table
 
 /************************************************************************
 *  Public function
 ************************************************************************/
-int do_erase_n(void  *dev,
-			   unsigned char* dest,
-			   unsigned int   rem_size);
-
-int do_write_n(void *dev,
-			   unsigned char* array_ptr,
-			   unsigned char* dest,
-			   unsigned int   rem_size,
-			   unsigned int   signature);
-
-int nf_read(n_device_type *device, unsigned long start_page, unsigned char* buf, unsigned long size);
-int nf_write(n_device_type *device, unsigned long start_page, unsigned char* buf, unsigned long size);
-int do_identify_n(void **dev);
-void do_init_n(void *dev);
+int  nf_erase(n_device_type* device, unsigned long start_block, unsigned long size);
+int  nf_read(n_device_type* device, unsigned long start_page, unsigned char* buf, unsigned long size);
+int  nf_write(n_device_type* device, unsigned long start_block, unsigned char* buf, unsigned long size);
+int  nf_identify(n_device_type** device);
+void nf_init(n_device_type* device);
 
 #endif

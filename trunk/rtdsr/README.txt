@@ -1,10 +1,13 @@
 rtdsr: Serial Recovery utility for Realtek RTD1283/Mars SoCs
 
 This program is meant to be used in the Serial Recovery console from the Realtek
-RTD1283 SoC BootROM ("s/d/g/c>"). It aims at providing the following features:
+RTD1283 SoC BootROM ("s/d/g/c>"). It provides the following features:
  - memory hexdump
  - memory block transfer, using Ymodem
  - flash read/write to/from memory
+
+NOTE: Flash R/W operations are only supported for single chip flash
+
 
 To compile the utility see the INSTALL.txt file
 
@@ -24,3 +27,4 @@ To run the utility:
    you will need to use a different hw_setting file.
 4. Type 'd' and transfer the 'rtdsr.bin' that you compiled
 5. Type 'g' to run the executable.
+6. For a list of commands, type 'help'

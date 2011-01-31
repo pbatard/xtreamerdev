@@ -1,3 +1,7 @@
+v0.6: 2011.01.29
+  - added flash write
+v0.5: 2011.01.27
+  - added flash read
 v0.4: 2011.01.25
   - added commandline processing
 v0.3: 2011.01.17

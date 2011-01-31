@@ -20,18 +20,18 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/* Adjust the following according to your CPU frequency (Hz)    */
+/* Adjust the following according to your CPU frequency (Hz)       */
 #define CPU_FREQUENCY			27000000
 
-/* Start of a RAM buffer, reserved for Flash R/W operations.    */
-/* This block MUST contain enough space to R/W blocks of Flash, */
-/* without overlapping with RAM_BASE                            */
+/* Start of a RAM buffer, reserved for Flash R/W operations.       */
+/* This block MUST contain enough space to read or write blocks of */
+/* flash without overlapping with RAM_BASE                         */
 #define FLASH_TMP_ADDR			0xa0300000
 
-/* Another RAM buffer to store the Flash block state table      */
-#define FLASH_BLK_ADDR			0xa0400000
+/* Another RAM buffer to store the Block State Table for the flash */
+#define FLASH_BST_ADDR			0xa0400000
 
-/* Default address for the RAM area                             */
+/* Default address for the RAM area                                */
 #define RAM_BASE				0xa0500000
 
 #endif

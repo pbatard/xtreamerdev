@@ -31,6 +31,7 @@
 #define KEY_LEFT			0x43	// Left
 #define KEY_RIGHT			0x44	// Right
 #define KEY_CTRL_C			0x03
+#define KEY_ESCAPE			0x1B
 
 typedef int(*commandfunc_t)(int, char *[]);
 
