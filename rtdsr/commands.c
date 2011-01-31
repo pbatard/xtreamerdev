@@ -29,10 +29,11 @@
 #include "ymodem.h"
 #include "flashdev_n.h"
 
-#define FLASH_MAGICNO_NOR_PARALLEL	0xbe
-
 /* the first command */
 commandlist_t *commands;
+
+/* Flash info */
+n_device_type* device = NULL;
 
 /* unsigned long to fixed length hexascii */
 static void ul2ha(unsigned long num, char* bf)
@@ -50,7 +51,7 @@ static void ul2ha(unsigned long num, char* bf)
 
 static unsigned long display_buffer_hex(unsigned long addr, unsigned long size)
 {
-	unsigned long i, j, k;
+	register unsigned long i, j, k;
 
 	for (i=0; i<size; i+=16) {
 		printf("  %08lx  ", addr+i);
@@ -75,9 +76,12 @@ static unsigned long display_buffer_hex(unsigned long addr, unsigned long size)
 		printf("\n");
 
 		/* Someone might want to abort - check for Ctrl-C */
-		if ((i%256 == 0) && (serial_read() == KEY_CTRL_C)) {
-			i+=16;
-			break;
+		if (i%256 == 0) {
+			register int c = serial_read();
+			if ( (c == KEY_CTRL_C) || (c == KEY_ESCAPE) ) {
+				i+=16;
+				break;
+			}
 		}
 	}
 	/* Number of bytes read so far */
@@ -112,13 +116,9 @@ static char echo_help[] = "echo\n"
 __commandlist(echo, "echo", echo_help);
 
 
-/* flash read */
-static int fread(int argc, char* argv[])
+/* flash info */
+static int flash_info(int argc, char* argv[])
 {
-	n_device_type* device;
-	unsigned long offset=0, size=0, dest=RAM_BASE;
-	unsigned long start_page;
-
 	/* Doubt anybody will need anything but NAND */
 	if ((REG32(RTGALAXY_INFO_FLASH) & RTGALAXY_FLASH_TYPE_MASK) != RTGALAXY_FLASH_TYPE_NAND) {
 		printf("Flash type not supported (NAND only)\n");
@@ -126,12 +126,36 @@ static int fread(int argc, char* argv[])
 	}
 
 	/* Identify NAND chip properties */
-	if (do_identify_n((void**)&device) < 0) {
+	if (nf_identify(&device) < 0) {
 		printf("Unable to detect NAND Flash type\n");
 		return -1;
 	}
-	printf("NAND Flash: %s, Size:%dMB, PageSize:0x%x\n",
-		device->string, (device->size)/0x100000, device->PageSize);
+
+	printf("NAND Flash: Type:%s, Size:%dMB, PageSize:0x%x, BlockSize:0x%x\n",
+		device->string, (device->size)/0x100000, device->PageSize, device->BlockSize);
+
+	/* This call initializes the Block State Table @ FLASH_BST_ADDR    */
+	/* Do it here, so we can overwrite the BST with yreceive if needed */
+	nf_init(device);
+
+	return 0;
+}
+
+static char finfo_help[] = "finfo\n"
+	"\nProvide info (page size, block size, total size) about the Flash\n";
+
+__commandlist(flash_info, "finfo", finfo_help);
+
+
+/* flash read */
+static int flash_read(int argc, char* argv[])
+{
+	unsigned long offset=0, size=0, dest=RAM_BASE;
+	unsigned long start_page;
+
+	if ((device == NULL) && (flash_info(0, NULL) != 0)) {
+		return -1;
+	}
 
 	if (argc > 1) {
 		offset = _strtoul(argv[1], NULL, 16);
@@ -154,18 +178,15 @@ static int fread(int argc, char* argv[])
 		dest = _strtoul(argv[3], NULL, 16);
 	}
 
-	do_init_n(device);
-
 	start_page = offset/device->PageSize;
-	size = ((size+device->PageSize-1)/device->PageSize)*device->PageSize;
 
 	/* Read a set of pages */
 	if (nf_read(device, start_page, (UINT8*)dest, size)) {
 		printf("Reading of Flash failed\n");
 		return -1;
 	}
-	printf("Read 0x%x bytes (%d page(s)) starting at offset 0x%08x (page %d)\n",
-		size, size/device->PageSize, start_page*device->PageSize, start_page);
+	printf("Read 0x%x bytes (0x%x pages) starting at offset 0x%08x (page 0x%x)\n",
+		size, size/device->PageSize, offset, start_page);
 
 	return 0;
 }
@@ -173,9 +194,73 @@ static int fread(int argc, char* argv[])
 static char fread_help[] = "fread [offset] [size] [dest]\n"
 	"\nRead <size> bytes, starting at <offset> from beginning of Flash, to <dest>\n"
 	"If omitted, offset=0, size=<NAND PageSize> and dest=<RAM_BASE>\n"
-	"<offset> and <size> must be multiples of the NAND PageSize\n";
+	"<offset> and <size> must be multiples of the NAND BlockSize\n";
 
-__commandlist(fread, "fread", fread_help);
+__commandlist(flash_read, "fread", fread_help);
+
+
+/* flash write */
+static int flash_write(int argc, char* argv[])
+{
+	unsigned long offset=0, size=0, src=RAM_BASE;
+	unsigned long start_block;
+	int c;
+
+	if ((device == NULL) && (flash_info(0, NULL) != 0)) {
+		return -1;
+	}
+
+	if (argc < 3) {
+		printf("You must supply a Flash offset and size argument\n");
+		return -1;
+	}
+
+	offset = _strtoul(argv[1], NULL, 16);
+	if (offset % device->BlockSize) {
+		printf("offset 0x%08x is not a multiple of BlockSize (0x%x) - aborting\n", offset, device->BlockSize);
+		return -1;
+	}
+	size = _strtoul(argv[2], NULL, 16);
+	if (size % device->BlockSize) {
+		printf("size 0x%x is not a multiple of BlockSize (0x%x) - aborting\n", size, device->BlockSize);
+		return -1;
+	}
+	if (size == 0) {
+		printf("size cannot be zero\n");
+		return -1;
+	}
+	if (argc > 3) {
+		src = _strtoul(argv[3], NULL, 16);
+	}
+
+	start_block = offset/device->BlockSize;
+
+	printf("About to write 0x%x bytes from RAM:0x%08x to Flash offset:0x%08x\n",
+		size, src, offset);
+	printf("If this is really what you want, press Y\n");
+	c = _getchar(-1);
+	if (c != 'Y' && c != 'y') {
+		printf("Operation cancelled\n");
+		return -1;
+	}
+
+	/* Write a set of blocks */
+	if (nf_write(device, start_block, (UINT8*)src, size)) {
+		printf("\nWriting of Flash failed!\n");
+		return -1;
+	}
+	printf("\nWrote 0x%x bytes (0x%x blocks) starting at offset 0x%08x (block 0x%x)\n",
+		size, size/device->BlockSize, offset, start_block);
+
+	return 0;
+}
+
+static char fwrite_help[] = "fwrite <offset> <size> [src]\n"
+	"\nWrite <size> bytes, from address <src> into Flash, at offset <offset>\n"
+	"<offset> and <size> are mandatory and must be multiples of the NAND PageSize\n"
+	"If omitted, src=<RAM_BASE>\n";
+
+__commandlist(flash_write, "fwrite", fwrite_help);
 
 
 /* display help */
@@ -192,6 +277,7 @@ static int help(int argc, char* argv[])
 				return 0;
 			}
 		}
+		printf("unknown command %s\n", argv[1]);
 
 		return -EINVAL;
 	}

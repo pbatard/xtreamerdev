@@ -26,7 +26,7 @@
 #include "ymodem.h"
 #include "command.h"
 
-#define VERSION "0.5"
+#define VERSION "0.6"
 
 int dvrmain(void)
 {
@@ -38,7 +38,7 @@ int dvrmain(void)
 	init_commands();
 
 	printf("\n\nrtdsr v" VERSION ", Copyright (c) 2011 Pete B. <xtreamerdev@gmail.com>\n\n");
-	printf("rtdsr comes with ABSOLUTELY NO WARRANTY.");
+	printf("rtdsr comes with ABSOLUTELY NO WARRANTY.\n");
 	printf("This program is free software, you are welcome to redistribute it under\n");
 	printf("certain conditions. See http://www.gnu.org/licenses/gpl.html for details.\n\n");
 

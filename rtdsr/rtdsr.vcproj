@@ -185,6 +185,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\flashdev_n.c"
+				>
+			</File>
+			<File
 				RelativePath=".\printf.c"
 				>
 			</File>
@@ -196,22 +200,6 @@
 				RelativePath=".\ymodem.c"
 				>
 			</File>
-			<Filter
-				Name="flash"
-				>
-				<File
-					RelativePath=".\flashdev_n.c"
-					>
-				</File>
-				<File
-					RelativePath=".\flashdev_p.c"
-					>
-				</File>
-				<File
-					RelativePath=".\flashdev_s.c"
-					>
-				</File>
-			</Filter>
 			<Filter
 				Name="boot"
 				>
@@ -247,6 +235,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\include\flashdev_n.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\flashdev_n_reg.h"
+				>
+			</File>
+			<File
 				RelativePath=".\include\mips.h"
 				>
 			</File>
@@ -270,26 +266,6 @@
 				RelativePath=".\include\ymodem.h"
 				>
 			</File>
-			<Filter
-				Name="flash"
-				>
-				<File
-					RelativePath=".\include\flashdev_n.h"
-					>
-				</File>
-				<File
-					RelativePath=".\include\flashdev_n_reg.h"
-					>
-				</File>
-				<File
-					RelativePath=".\include\flashdev_p.h"
-					>
-				</File>
-				<File
-					RelativePath=".\include\flashdev_s.h"
-					>
-				</File>
-			</Filter>
 		</Filter>
 		<Filter
 			Name="hw_setting"

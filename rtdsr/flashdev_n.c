@@ -33,9 +33,10 @@ UINT32 pages_per_block;
 UINT32 blocks_per_flash;
 
 #define PAGE_TMP_ADDR		FLASH_TMP_ADDR
-#define BLK_STATE_BASE		FLASH_BLK_ADDR
+#define BLK_STATE_BASE		FLASH_BST_ADDR
 
 static UINT8 *blk_state;				// bootcode block state array
+static UINT8 *blk_state_copy;			// second unmodified copy, for write operations
 static UINT32 blk_state_len;			// length of bootcode block state array
 static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search_depth, UINT32 offset);
 static int set_block_state(UINT32 block_no, UINT8 state);
@@ -98,48 +99,41 @@ static void nf_ctrler_init()
 	REG32(REG_CTL) = 0x80;
 
 	// polling go bit to until go bit de-assert (command completed)
-	while ( REG32(REG_CTL) & 0x80)
+	while (REG32(REG_CTL) & 0x80)
 		;
 
-	// set 'read status' command to third command register???
-	REG32(REG_CMD3) = 0x70;
-
-	// detect command completion or not
-	// please reference to 'read status' definition in nand flash
-	// bit_sel = 0x6 (i.e. I/O ping 6), trig_poll = 1b
-	REG32(REG_POLL_STATUS) = 0xd;
-
-	while ( REG32(REG_POLL_STATUS) & 0x1)
+	// check ready/busy pin of NAND flash
+	while ((REG32(REG_CTL) & 0x40) == 0)
 		;
 }
 
-static UINT8 nf_get_spare(INT8 mem_region, UINT32 *spare, UINT32 offset)
+static UINT8 nf_get_spare(UINT32 *spare)
 {
 	// configure spare area data in PP (16 byte: 6 byte for user-defined, 10 byte for ECC)
 	REG32(REG_PP_RDY) = 0; // disable read_by_pp
-	REG32(REG_SRAM_CTL) = 0x30 | mem_region; // enable direct access to PP #3
+	REG32(REG_SRAM_CTL) = 0x30 | 0xe; // enable direct access to PP #3
 
-	*spare = REG32(0xb8010000 + offset); // set spare area of first PP
-	//REG32(0xb8010004) = spare[0]; // (only first 6 byte is user-defined)
+	*spare = REG32(REG_BASE_ADDR); // set spare area of first PP
 
 	REG32(REG_SRAM_CTL) = 0x0; // disable direct access
 	return 0;
 }
 
-static UINT8 nf_set_spare(UINT32 spare, UINT32 offset)
+static UINT8 nf_set_spare(UINT32 spare)
 {
 	// configure spare area data in PP (16 byte: 6 byte for user-defined, 10 byte for ECC)
 	REG32(REG_PP_RDY) = 0; // disable read_by_pp
 	REG32(REG_SRAM_CTL) = 0x30 | 0x2; // enable direct access to PP #3
 
-	REG32(0xb8010000 + offset) = spare; // set spare area of first PP
-	//REG32(0xb8010004) = spare[0]; // (only first 6 byte is user-defined)
+	REG32(REG_BASE_ADDR) = spare; // set spare area of first PP
+	REG8(REG_BASE_ADDR + 4) = 0xff;
+	REG8(REG_BASE_ADDR + 5) = 0xff;
 
 	REG32(REG_SRAM_CTL) = 0x0; // disable direct access
 	return 0;
 }
 
-static int nf_read_page( n_device_type *device, UINT32 page_no, UINT8 *buf)
+static int nf_read_page(n_device_type *device, UINT32 page_no, UINT8 *buf)
 {
 	//Set data transfer count, data transfer count must be 0x200 at auto mode
 	//Set SRAM path and access mode
@@ -200,9 +194,10 @@ static int nf_read_page( n_device_type *device, UINT32 page_no, UINT8 *buf)
 	return 0;
 }
 
-static int nf_write_page( n_device_type *device, UINT32 page_no, UINT8 *buf)
+static int nf_write_page(n_device_type *device, UINT32 page_no, UINT8 *buf)
 {
 	UINT32 temp;
+
 	//Set data transfer count, data transfer count must be 0x200 at auto mode
 	//Set SRAM path and access mode
 	REG32(REG_DATA_CNT1) = 0;
@@ -258,12 +253,10 @@ static int nf_write_page( n_device_type *device, UINT32 page_no, UINT8 *buf)
 	temp = REG32(REG_DATA) & 0x1;
 
 	if (temp == 0) {
-		/* show '.' in console */
-		REG32(0xb801b200)= 0x2e ; //cy test
+		printf(".");
 		return 0;
 	}
-	/* show '!' in console */
-	REG32(0xb801b200)= 0x21 ; //cy test
+	printf("!");
 	return -1;
 }
 
@@ -272,6 +265,8 @@ static int nf_erase_block(n_device_type *device, UINT32 block)
 	UINT32 page_addr, temp;
 
 	page_addr = block * pages_per_block;
+
+	printf("erasing block 0x%x... ", block);
 
 	//Set command
 	REG32(REG_CMD1) = 0x60;		//Set CMD1
@@ -286,7 +281,6 @@ static int nf_erase_block(n_device_type *device, UINT32 block)
 	REG32(REG_PAGE_ADR3) = ((page_addr >> 21) & 0x7) << 5;
 	REG32(REG_COL_ADR0)  = 0;
 	REG32(REG_COL_ADR1)  = 0;
-
 
 	//Set ECC: Set HW no check ECC, no_wait_busy
 	REG32(REG_MultiChMod) = 0x1 << 4;
@@ -305,18 +299,16 @@ static int nf_erase_block(n_device_type *device, UINT32 block)
 	temp = REG32(REG_DATA) & 0x1;
 
 	if (temp == 0) {
-		/* show '/' in console */
-		REG32(0xb801b200)= 0x2f ; //cy test
+		printf("success\n");
 		return 0;
 	}
-	/* show 'X' in console */
-	REG32(0xb801b200)= 0x58 ; //cy test
+	printf("failed!!\n");
 	return -1;
 }
 
 /************************************************************************
 *
-*                          do_erase_n
+*                          nf_erase
 *  Description :
 *  -------------
 *  implement the flash erase
@@ -329,103 +321,63 @@ static int nf_erase_block(n_device_type *device, UINT32 block)
 *  ---------------
 *
 ************************************************************************/
-int do_erase_n(void *dev,               //flash device
-			   unsigned char* dest,     //start of block NO.
-			   unsigned int   rem_size) //request data length
+int nf_erase(n_device_type* device,      //flash device
+			 unsigned long  start_block, //start of block NO.
+			 unsigned long  size)        //request data length
 {
-	UINT32 signature;
-	n_device_type *device = (n_device_type *)dev;
-
-	UINT32 req_block_no, total_blocks, first_block;
-	UINT32 current_block_no = (UINT32)dest;
-	int res;
+	UINT32 req_block_no;
+	UINT32 current_block_no = start_block;
 	UINT8 state;
 
-	// calculate required number of blocks
-	req_block_no = rem_size / device->BlockSize;
-	if (rem_size % device->BlockSize)
-		req_block_no++;
+	if (size % device->BlockSize) {
+		printf("erase size must be a multiple of block size\n");
+		return -1;
+	}
 
-	total_blocks = req_block_no;
-	first_block = (UINT32)dest;
+	// calculate required number of blocks
+	req_block_no = size / device->BlockSize;
 
 	while (req_block_no != 0)
 	{
-		// return failed if reach bootcode blocks boundary (16MB)
-		if (current_block_no > (blk_state_len - 1))
+		if (get_block_state(current_block_no, &state))
+			// return failed if reach bootcode blocks boundary (32MB)
 			return -1;
 
-		res = get_block_state(current_block_no, &state);
-		if (res)
+		switch(state)
 		{
-			// block state table has no record (out of range?)
-			// try to read first page in block then check data
-			// in spare area those load to PP
-			res = nf_read_page( device, current_block_no * pages_per_block, (UINT8 *)PAGE_TMP_ADDR);
-
-			// read page failed (restart to find contiguous clean blocks)
-			if (res == -1)
-			{
-				current_block_no++;
-				req_block_no = total_blocks;
-				first_block = current_block_no;	// re-init start block no
-				continue;
-			}
-
-			nf_get_spare(0x2, &signature, 0);
-			state = signature & 0xff;
-		}
-
-		// block is good
-		if (state == BLOCK_CLEAN)
-		{
+		case BLOCK_CLEAN:
 			current_block_no++;
 			req_block_no--;
-			continue;
-		}
-
-		// bad block (restart to find contiguous clean blocks)
-		if(state == BLOCK_BAD)
-		{
-			current_block_no++;
-			req_block_no = total_blocks;
-			first_block = current_block_no;	// re-init start block no
-			continue;
-		}
-		else
-		{
+			break;;
+		case BLOCK_BAD:
+			printf("bad block detected (0x%x) - will try to erase it anyway\n", current_block_no);
+		default:
 			// if erase current_block_no fail, mark this block as fail
 			if (nf_erase_block(device, current_block_no) < 0)
 			{
 				// write 'BAD_BLOCK' signature to spare cell
-				// (restart to find contiguous clean blocks)
-				nf_set_spare(BLOCK_BAD, 0);
-				nf_write_page( device, current_block_no * pages_per_block, (UINT8 *)PAGE_TMP_ADDR);
-
+				nf_set_spare(BLOCK_BAD);
+				nf_write_page(device, current_block_no * pages_per_block, (UINT8*)PAGE_TMP_ADDR);
 				set_block_state(current_block_no, BLOCK_BAD);
-				current_block_no++;
-				req_block_no = total_blocks;
-				first_block = current_block_no;	// re-init start block no
-				continue;
+				// abort
+				return -1;
 			}
-			else
-			{
-				// block is good after erase
-				set_block_state(current_block_no, BLOCK_CLEAN);
-				current_block_no++;
-				req_block_no--;
-			}// end of erase block success
+			// block is good after erase
+			set_block_state(current_block_no, BLOCK_CLEAN);
+			current_block_no++;
+			req_block_no--;
+			break;
 		}
 
 	}// end of while (req_block_no != 0)
 
-	// return start block available to write
-	return first_block;
+	return 0;
 }
+
 
 /************************************************************************
 *
-*                          do_write
+*                          nf_write
 *  Description :
 *  -------------
 *  implement the flash write
@@ -437,71 +389,73 @@ int do_erase_n(void *dev,               //flash device
 *  ---------------
 *
 ************************************************************************/
-int do_write_n(void *dev,
-			   unsigned char* array_ptr,
-			   unsigned char* dest,
-			   unsigned int   rem_size,
-			   unsigned int signature)
+int nf_write(n_device_type* device,      //flash device
+			 unsigned long  start_block, //start of block NO.
+			 unsigned char* buf,         //source buffer
+			 unsigned long  size)        //requested size
 {
-	n_device_type *device = (n_device_type *)dev;
-	int data_len = rem_size;
+	unsigned long data_len = size;
 	UINT32 current_page;
-	UINT8 * data_ptr = array_ptr;
-	int ith;
+	UINT32 signature;
+	UINT8* data_ptr = buf;
+
+	if ((device == NULL) || (size % device->BlockSize)) {
+		return -1;
+	}
 
 	//erase blocks we need to save data
-	ith = do_erase_n(dev, dest, rem_size);
+	if (nf_erase(device, start_block, size) < 0) {
+		printf("erase failed\n");
+		return -1;
+	}
 
-	if (ith == -1)
-		return -1;	// no more blocks available
-
-	current_page = ((UINT32)ith) * pages_per_block;
+	current_page = start_block * pages_per_block;
 
 	// write data to nand flash pages
-	while (data_len > 0)
+	while (data_len != 0)
 	{
+		// read signature from the table at FLASH_BST_ADDR
+		signature = (UINT32)blk_state_copy[current_page/pages_per_block];
 		// set signature to pp buffer and wait for writing to spare cell
-		nf_set_spare(signature, 0);
+		nf_set_spare(signature);
 
-		if ( nf_write_page( device, current_page, data_ptr) < 0)
+		if (current_page % pages_per_block == 0) {
+			printf("writing block 0x%x", current_page / pages_per_block);
+		}
+
+		if (nf_write_page(device, current_page, data_ptr) < 0)
 		{
 			UINT32 current_block_no = current_page / pages_per_block;
+			printf(" error: failed at page 0x%x!\n", current_page);
 
 			// erase whole block to write signature to spare cell
 			nf_erase_block(device, current_block_no);
 
 			//write 'BAD_BLOCK' signature to spare cell
-			nf_set_spare(BLOCK_BAD, 0);
+			nf_set_spare(BLOCK_BAD);
 			set_block_state(current_block_no, BLOCK_BAD);
 
 			// perform writing
-			nf_write_page( device, current_block_no * pages_per_block, (UINT8 *)PAGE_TMP_ADDR);
+			nf_write_page(device, current_block_no * pages_per_block, (UINT8*)PAGE_TMP_ADDR);
 
-			// redo all operation from start
-			ith = do_erase_n(dev, dest, rem_size);
-			if (ith == -1)
-				return -1;	// no more blocks available
-
-			data_len = rem_size;
-			current_page = ((UINT32)ith) * pages_per_block;
-			data_ptr = array_ptr;
-
+			return -1;
 		}
-		else
-		{
-			set_block_state(current_page / pages_per_block, signature);
-			current_page ++;
-			data_ptr += device->PageSize;
-			data_len -= device->PageSize;
+		set_block_state(current_page / pages_per_block, signature);
+		current_page++;
+		data_ptr += device->PageSize;
+		data_len -= device->PageSize;
+
+		if (current_page % pages_per_block == 0) {
+			printf(" success\n");
 		}
 	}
 
-	return current_page;
+	return 0;
 }
 
 /************************************************************************
 *
-*                          do_identify_n
+*                          nf_identify
 *  Description :
 *  -------------
 *  implement the identyfy flash type
@@ -513,7 +467,7 @@ int do_write_n(void *dev,
 *  ---------------
 *
 ************************************************************************/
-int do_identify_n(void **dev)
+int nf_identify(n_device_type** device)
 {
 	UINT32 chipid = 0;
 	UINT32 idx;
@@ -599,7 +553,7 @@ int do_identify_n(void **dev)
 	{
 		if ( n_device[idx].id == chipid )
 		{
-			*dev = (void *)&n_device[idx];
+			*device = (n_device_type*)&n_device[idx];
 
 			// compute block number per flash and page size per block
 			pages_per_block  = n_device[idx].BlockSize / n_device[idx].PageSize;
@@ -609,14 +563,14 @@ int do_identify_n(void **dev)
 		}
 	}
 
-	*dev = 0;
+	*device = 0;
 
 	return -1;	// cannot find any matched ID
 }
 
 /************************************************************************
 *
-*                          do_init_n
+*                          nf_init
 *  Description :
 *  -------------
 *  implement the following NAND flash init job:
@@ -631,18 +585,17 @@ int do_identify_n(void **dev)
 *  ---------------
 *
 ************************************************************************/
-void do_init_n(void *dev)
+void nf_init(n_device_type* device)
 {
-	n_device_type *device = (n_device_type *)dev;
 	UINT32 i;
 	INT32 res;
 
 	// init block state table
-	blk_state_len = NAND_BOOTCODE_SIZE / device->BlockSize;	// only bootcode blocks (16MB of the flash)
+	blk_state_len = NAND_BOOTCODE_SIZE / device->BlockSize;	// only bootcode blocks (32MB of the flash)
 	for (i = 0; i < blk_state_len; i++)
 		REG8(BLK_STATE_BASE + i) = BLOCK_UNDETERMINE;
-	blk_state = (UINT8 *)BLK_STATE_BASE;
-
+	blk_state = (UINT8*)BLK_STATE_BASE;
+	blk_state_copy = (UINT8*)(BLK_STATE_BASE + blk_state_len);
 
 	/* fill block state table */
 	// search with non-exist magic no (this guarantees we can visit to the end of the bootcode blocks)
@@ -761,8 +714,10 @@ int nf_read(n_device_type *device, unsigned long start_page, unsigned char* buf,
 
 	// do not allow read past end of flash
 	stop_page = start_page + size / device->PageSize;
-	if (stop_page > pages_per_block * blocks_per_flash)
+	if (stop_page > pages_per_block * blocks_per_flash) {
+		printf("attempted to read past end of flash\n");
 		return (-1);
+	}
 
 	while (start_page < stop_page)
 	{
@@ -774,6 +729,7 @@ int nf_read(n_device_type *device, unsigned long start_page, unsigned char* buf,
 			break;
 
 		default:
+			printf("page %d is marked not clean!\n", start_page);
 			return (-1);
 		}
 
@@ -783,52 +739,6 @@ int nf_read(n_device_type *device, unsigned long start_page, unsigned char* buf,
 	return 0;
 }
 
-/************************************************************************
-*
-*                          nf_write
-*  Description :
-*  -------------
-*  write data into NAND flash
-*
-*  Parameters :
-*  ------------
-*  'device',       IN,    variable of type, n_device_type.
-*  'start_page',   IN,    start page address to write
-*  'buf',          IN,    pointer for buffer of data to be written
-*  'size',         IN,    number of bytes to write
-*
-*  Return values :
-*  ---------------
-*  '-1': device is NULL or write beyond flash or write failed
-*
-************************************************************************/
-int nf_write(n_device_type *device, unsigned long start_page, unsigned char* buf, unsigned long size)
-{
-	unsigned long stop_page;
-	int res;
-
-	// validate arguments (size should be aligned to page size boundary)
-	if ( (device == NULL) || (buf == NULL)
-		|| (start_page > pages_per_block * blocks_per_flash)
-		|| (size & (device->PageSize - 1))
-		|| (size == 0) )
-		return (-1);
-
-	// do not allow write past end of flash
-	stop_page = start_page + size / device->PageSize;
-	if (stop_page > pages_per_block * blocks_per_flash)
-		return (-1);
-
-	while (start_page < stop_page)
-	{
-		res = nf_write_page(device, start_page, buf);
-		if (res)
-			return (-1);
-		buf += device->PageSize;
-		start_page++;
-	}
-	return 0;
-}
 
 /************************************************************************
 *
@@ -861,7 +771,7 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 
 	// determine search limit
 	if (search_depth == 0)
-		limit = NAND_BOOTCODE_SIZE / device->BlockSize;	// only bootcode blocks (first 16MB of the flash)
+		limit = NAND_BOOTCODE_SIZE / device->BlockSize;	// only bootcode blocks (first 32MB of the flash)
 	else if (search_depth >= blocks_per_flash)
 		limit = blocks_per_flash;	// search to end of flash
 	else
@@ -878,23 +788,21 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 		blk++, page_no += pages_per_block)
 	{
 		// read first page of the block to table sram
-		res = nf_read_to_table(device, page_no, 2048);	// read page to table SRAM
-		//res = nf_read_page(device, page_no, (UINT8 *) 0xa2001000);
+		res = nf_read_to_table(device, page_no, device->PageSize);	// read page to table SRAM
 
 		switch (res)
 		{
 		case DATA_ALL_ONE:
-			set_block_state(blk, BLOCK_CLEAN);
+			blk_state[blk] = blk_state_copy[blk] = BLOCK_CLEAN;
 			continue;
 
 		case 0:		// read to table success
-			nf_get_spare(0xe, &spare, 0);
-			//nf_get_spare(0x2, &spare, 0);
+			nf_get_spare(&spare);
 			spare &= 0xff;
 			break;
 
 		default:	// read to table has error
-			set_block_state(blk, BLOCK_BAD);
+			blk_state[blk] = blk_state_copy[blk] = BLOCK_BAD;
 			continue;	// next block
 		}
 
@@ -904,7 +812,7 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 			continue;	// should not happen
 
 		// update with new magic no. in spare area
-		set_block_state(blk, (UINT8)(spare & 0xff));
+		blk_state[blk] = blk_state_copy[blk] = (UINT8)(spare & 0xff);
 	}
 
 	return (0);
@@ -929,8 +837,10 @@ static INT8 nf_find_blk(n_device_type *device, UINT32 start_block, UINT32 search
 ************************************************************************/
 static int set_block_state(UINT32 block_no, UINT8 state)
 {
+	if (block_no >= blk_state_len)
+		return -1;
 	blk_state[block_no] = state;
-	return (block_no < blk_state_len ? 0 : -1);
+	return 0;
 }
 
 
@@ -953,6 +863,8 @@ static int set_block_state(UINT32 block_no, UINT8 state)
 ************************************************************************/
 static int get_block_state(UINT32 block_no, UINT8 *state)
 {
+	if (block_no >= blk_state_len)
+		return -1;
 	*state = blk_state[block_no];
-	return (block_no < blk_state_len ? 0 : -1);
+	return 0;
 }
